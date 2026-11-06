@@ -54,8 +54,13 @@ namespace Floresta
             // aba de trás do casaco (balança com mola)
             r.tail = Node("aba", r.pelvis, new Vector3(0, 0.02f, -0.12f));
             mb = new MeshBuilder();
-            mb.Quad(new Vector3(-0.15f, 0, 0), new Vector3(0.15f, 0, 0), new Vector3(0.19f, -0.44f, -0.05f), new Vector3(-0.19f, -0.44f, -0.05f), cloak);
-            mb.Quad(new Vector3(-0.15f, 0, 0.01f), new Vector3(-0.19f, -0.44f, -0.04f), new Vector3(0.19f, -0.44f, -0.04f), new Vector3(0.15f, 0, 0.01f), cloakD);
+            for (int sd = -1; sd <= 1; sd += 2)      // duas abas do casaco, levemente curvas
+            {
+                var t0 = new Vector3(sd * 0.02f, 0, 0); var t1 = new Vector3(sd * 0.165f, 0, 0.01f);
+                var m0 = new Vector3(sd * 0.025f, -0.18f, -0.03f); var m1 = new Vector3(sd * 0.18f, -0.18f, -0.02f);
+                var b0 = new Vector3(sd * 0.03f, -0.34f, -0.045f); var b1 = new Vector3(sd * 0.19f, -0.34f, -0.035f);
+                mb.Quad(t0, t1, m1, m0, cloak); mb.Quad(m0, m1, b1, b0, cloakD);
+            }
             Part("aba_m", r.tail, mb, Vector3.zero);
 
             for (int s = 0; s < 2; s++)
@@ -453,7 +458,7 @@ namespace Floresta
 
             // ---------------- peças soltas com mola
             var velL = root.InverseTransformDirection(vel);
-            float tailT = Mathf.Clamp(-velL.z * 7f - accLocal.z * 1.2f + vel.y * -4f, -70, 8) + Mathf.Sin(time * 9 + phase * 6.28f) * 4 * moveW;
+            float tailT = Mathf.Clamp(-velL.z * 5f - accLocal.z * 1.0f + vel.y * -4f, -50, 8) + Mathf.Sin(time * 9 + phase * 6.28f) * 4 * moveW;
             float tailX = tailS.Step(-tailT, 2.2f, 0.35f, dt);
             r.tail.localRotation = Quaternion.Euler(tailX, 0, tailSide.Step(-velL.x * 6 - bk, 2f, 0.4f, dt));
             float packT = bob * 120f + landDip * 60f + accLocal.z * -0.8f;
