@@ -57,9 +57,9 @@ namespace Floresta
             for (int sd = -1; sd <= 1; sd += 2)      // duas abas do casaco, levemente curvas
             {
                 var t0 = new Vector3(sd * 0.02f, 0, 0); var t1 = new Vector3(sd * 0.165f, 0, 0.01f);
-                var m0 = new Vector3(sd * 0.025f, -0.18f, -0.03f); var m1 = new Vector3(sd * 0.18f, -0.18f, -0.02f);
+                var c0 = new Vector3(sd * 0.025f, -0.18f, -0.03f); var c1 = new Vector3(sd * 0.18f, -0.18f, -0.02f);
                 var b0 = new Vector3(sd * 0.03f, -0.34f, -0.045f); var b1 = new Vector3(sd * 0.19f, -0.34f, -0.035f);
-                mb.Quad(t0, t1, m1, m0, cloak); mb.Quad(m0, m1, b1, b0, cloakD);
+                mb.Quad(t0, t1, c1, c0, cloak); mb.Quad(c0, c1, b1, b0, cloakD);
             }
             Part("aba_m", r.tail, mb, Vector3.zero);
 
