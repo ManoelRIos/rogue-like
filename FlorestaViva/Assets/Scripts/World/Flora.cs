@@ -242,7 +242,7 @@ namespace Floresta
             Autumn = Col.Hex("#ee7a44"), AutumnL = Col.Hex("#ffc66a"), BirchLeaf = Col.Hex("#7ccf62"), BirchLeafL = Col.Hex("#e6f584"),
             Blossom = Col.Hex("#e889b4"), BlossomL = Col.Hex("#ffd6e8"),
             Dead = Col.Hex("#5a4a48"), Bush = Col.Hex("#3a8a4e"), BushL = Col.Hex("#86d05e"), Berry = Col.Hex("#e8385a"),
-            Stone = Col.Hex("#9a90a8"), StoneL = Col.Hex("#d0c6dc"), Moss = Col.Hex("#6ab04c"), Grass = Col.Hex("#6cbc4a"), GrassL = Col.Hex("#d6f070"),
+            Stone = Col.Hex("#8e86a0"), StoneL = Col.Hex("#b4aac4"), Moss = Col.Hex("#6ab04c"), Grass = Col.Hex("#6cbc4a"), GrassL = Col.Hex("#d6f070"),
             Cap = Col.Hex("#f0605a"), CapGlow = Col.Hex("#6af6e6"), Stem = Col.Hex("#f4ead0");
 
         void Add(string k, Mesh m) { if (!meshes.TryGetValue(k, out var l)) meshes[k] = l = new List<Mesh>(); l.Add(m); }

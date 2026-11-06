@@ -80,6 +80,17 @@ Se algo der erro, copie a **primeira** mensagem vermelha do Console (as outras c
 - **Árvores caindo com física**: cada golpe solta lascas e folhas e a copa balança; no último, a árvore **range**, tomba devagar e acelera (corpo rígido girando na base), **bate no chão, quica**, levanta poeira e uma chuva de folhas, faz a câmera tremer de quem está perto e afunda. Fica o **toco**; depois uma **muda nasce e cresce**. Pedras se quebram em pedaços; arbustos soltam folhas e frutinhas.
 - **Ambientação**: borboletas nas flores, folhas caindo na mata, **névoa rasteira** no amanhecer e à noite (mais nas baixadas e no rio), **nuvens** que andam com o vento (alaranjadas no pôr do sol), disco do sol e da lua no céu, e sons com posição: vários pássaros e pica-pau de dia; coruja, sapos no rio e **galhos estalando no escuro** à noite; rajadas de vento.
 
+## Estética estilo Omno + correções (atualização)
+
+- **Nada flutua mais**: o chão tem uma função de altura exata (`World.Ground`) que lê o triângulo desenhado; árvores, pedras, arbustos, grama, flores, base, horta, partículas e criaturas usam ela. Troncos e pedras assentam no ponto mais baixo embaixo deles e entram um pouco no chão.
+- **Movimento**: o Andarilho gruda no chão ao descer morro (antes descolava por um quadro e as pernas encolhiam como se fosse pular), tolerância curta de "no chão" para pulo e animação.
+- **Luz pintada**: passagem suave entre sombra e luz, folhas e grama brilham contra o sol (translúcidas), contorno claro com a cor do céu, **normais suaves** nas copas, arbustos, pinheiros e morros (degradê em vez de quinas duras).
+- **Sombras coloridas**: luz ambiente em 3 cores (céu azulado, horizonte, chão quente).
+- **Neblina por altura** com perspectiva aérea: mais densa nas baixadas, morros e copas aparecem acima; ao longe vira o tom do horizonte e **esquenta na direção do sol**. À noite fica densa e azul-arroxeada.
+- **Paleta pastel saturada**: céus luminosos, pores do sol rosa/laranja, pinheiros turquesa, **cerejeiras rosa** (com pétalas caindo), pedras lilases, água turquesa.
+- **Pós-processamento** (`Rendering/OmnoPost.cs`): bloom suave (sol, fogo, vagalumes, olhos), correção de cor que muda com a hora (quente de dia, dourada no pôr do sol, azul à noite) e vinheta.
+- **Luzes do rio**: orbes turquesa flutuando sobre a água no lusco-fusco.
+
 ## Próximos marcos
 
 Veja [Docs/ROTEIRO.md](Docs/ROTEIRO.md): modo construção, veículo, aventuras pelo mapa (ruínas, baús, missões) e **co-op online** (até 4, host + código de convite).
