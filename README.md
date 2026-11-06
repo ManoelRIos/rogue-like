@@ -31,7 +31,7 @@ Se algo da arte aparecer borrado, use o menu **Ecos → Configurar projeto**.
 | Interagir (baús, loja, armas, alçapão) | `E` |
 | Trocar arma | `1–9` ou roda do mouse |
 | Pausar | `Esc` / `P` |
-| Alternar visão 2.5D ↔ 3D | botão **VISÃO 3D** no HUD, `V` ou `F2` (no 3D, `Z`/`C` giram a câmera) |
+| Trocar visão (2.5D → 3D → 1ª pessoa) | botão **VISÃO** no HUD, `V` ou `F2` · no 3D `Z`/`C` giram a câmera · na 1ª pessoa o mouse olha |
 | Depuração (Editor) | `F1` modo deus · `F3` pular de andar |
 
 ## Primeiro andar: Cripta das Velas
@@ -44,6 +44,12 @@ e vão sendo trocados aos poucos.
 - **Só a sala atual aparece**: o mapa é dividido em zonas (salas e corredores). O que está além das portas
   fica no escuro até você entrar, e a câmera fica presa dentro da sala. A troca é suave: a sala nova
   surge do escuro e a anterior se apaga (sem tela preta).
+- **Personagens em 3D**: nas câmeras 3D o Coveiro, o Cultista e a Viúva viram modelos em voxel (1 voxel = 1 pixel
+  da arte, mesmas cores), articulados e animados por código: caminhada, salto encolhendo as pernas, braço
+  mirando a arma, morte caindo de costas / desabando / derretendo. As armas são extrudadas dos sprites.
+  ![Modelos 3D](Docs/modelos_3d.png)
+- **Primeira pessoa**: a terceira visão. A câmera mergulha até os olhos do Coveiro, o mouse controla o olhar,
+  a arma aparece na mão (com balanço e recuo) e as balas sobem para a altura dos olhos.
 - **Visão 3D**: o botão do HUD faz uma transição de câmera de ~1 s (dolly zoom: a projeção ortográfica
   vira perspectiva enquanto a câmera desce e se aproxima). No 3D a câmera gira com `Z`/`C`, o movimento
   acompanha a direção da câmera e os sprites inclinam para continuar de frente.
@@ -78,7 +84,7 @@ Assets/
     Net/         PlayerInputState (base para o co-op online)
     UI/          UiDraw (interface pixel perfect) e Hud
     Audio/       Sfx (sons sintetizados)
-Tools/ArtGen/                   gerador da pixel art em Python (Pillow)
+Tools/ArtGen/                   gerador da pixel art e dos modelos voxel (Python + Pillow)
 Docs/                           arquitetura, guia de sprites e prévias
 ```
 
@@ -90,5 +96,6 @@ Docs/                           arquitetura, guia de sprites e prévias
 ```bash
 pip install pillow
 python3 Tools/ArtGen/build.py        # recria Assets/Resources/Art
+python3 Tools/ArtGen/models3d.py     # recria os modelos voxel (Assets/Resources/Voxels)
 python3 Tools/ArtGen/mock_render.py  # recria as prévias em Docs/
 ```

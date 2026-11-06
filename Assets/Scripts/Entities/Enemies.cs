@@ -50,6 +50,8 @@ namespace Ecos
         protected SpriteRenderer gunSr;
         protected float gunKick;
         public string bulletSprite;
+        protected VoxelRig rig;          // modelo 3D (quando existir)
+        protected virtual int DeathStyle => 1;
         protected GameManager G => GameManager.I;
         public virtual bool IsBoss => false;
         public virtual Color Color => def.color;
@@ -89,6 +91,13 @@ namespace Ecos
                 gunSr.enabled = instant;
             }
             bulletSprite = def?.bullet;
+            string model = sheet.Replace("enemy_", "").Replace("boss_", "");
+            if (VoxelLib.Has(model))
+            {
+                rig = new VoxelRig(model);
+                if (def != null && def.gun != null) rig.SetGun("arma_" + def.gun, new Vector3(0.45f, 0.55f, 0.3f));
+                rig.Visible = false;
+            }
             view.SetSprite(anim[0]);
             view.SpriteVisible(instant);
             view.Place(pos, 0);
@@ -122,13 +131,13 @@ namespace Ecos
                 view.SetFlash(0);
                 view.SetTint(Color.white);
                 if (view.Shadow) view.Shadow.enabled = false;
-                G.AddCorpse(view, deathAnim, pos);
+                G.AddCorpse(view, deathAnim, pos, rig, DeathStyle);
             }
-            else view.Destroy();
+            else { view.Destroy(); rig?.Destroy(); }
             G.OnEnemyKilled(this);
         }
 
-        public void Remove() { dead = true; view.Destroy(); }
+        public void Remove() { dead = true; view.Destroy(); rig?.Destroy(); }
 
         // ------------------------------------------------------------------ tiros
         public void Shot(float angle, float speed, float size = 1, float accel = 0, float curve = 0, Vector2? from = null, float? off = null)
@@ -296,6 +305,25 @@ namespace Ecos
                 gunSr.transform.localScale = new Vector3(1, left ? -1 : 1, 1);
             }
             view.Place(pos, Height);
+            UpdateRig(new RigPose { walkPhase = t * 9f, walk = Mathf.Clamp01(vel.magnitude / Mathf.Max(0.5f, def != null ? def.speed : 1)), aim = windup > 0 || gunKick > 0 ? 1 : 0.3f, sway = Mathf.Sin(t * 2.5f), kick = gunKick });
+        }
+
+        /// <summary>Mostra o modelo 3D no lugar do sprite quando a câmera está em 3D.</summary>
+        protected void UpdateRig(RigPose pose)
+        {
+            if (rig == null) return;
+            bool use3D = PixelCamera.I.Blend > 0.5f;
+            rig.Visible = use3D && (active || IsBoss);
+            if (use3D)
+            {
+                view.SpriteVisible(false);
+                if (gunSr) gunSr.enabled = false;
+                var P = Target();
+                rig.Pose(pose);
+                rig.SetFlash(Mathf.Max(flash * 0.9f, windup > 0 ? 0.25f + Mathf.Sin(t * 40) * 0.2f : 0));
+                rig.Place(pos, Height, P != null ? MathX.Angle(pos, P.pos) : 0);
+            }
+            else if (active || IsBoss) { view.SpriteVisible(true); if (gunSr) gunSr.enabled = true; }
         }
     }
 }

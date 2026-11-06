@@ -33,7 +33,8 @@ namespace Ecos
         public Rng Rng;
 
         readonly List<Pickup> pickups = new();
-        readonly List<(SpriteView view, Anim anim, float t, int zone)> corpses = new();
+        class Corpse { public SpriteView view; public Anim anim; public float t; public int zone; public VoxelRig rig; public int style; }
+        readonly List<Corpse> corpses = new();
         readonly HashSet<int> visibleZones = new();
         int curZone = -1, prevZone = -1;
         readonly List<IInteractable> interactables = new();
@@ -88,7 +89,7 @@ namespace Ecos
             foreach (var e in Enemies) if (!e.dead) e.Remove();
             foreach (var p in pickups) if (!p.dead) p.Remove();
             foreach (var i in interactables) i.Remove();
-            foreach (var c in corpses) c.view.Destroy();
+            foreach (var c in corpses) { c.view.Destroy(); c.rig?.Destroy(); }
             corpses.Clear();
             curZone = prevZone = -1;
             Enemies.Clear(); pickups.Clear(); interactables.Clear();
@@ -348,10 +349,10 @@ namespace Ecos
             }
         }
 
-        public void AddCorpse(SpriteView view, Anim death, Vector2 pos)
+        public void AddCorpse(SpriteView view, Anim death, Vector2 pos, VoxelRig rig = null, int style = 1)
         {
-            corpses.Add((view, death, 0f, Level.ZoneAt(pos)));
-            if (corpses.Count > 40) { corpses[0].view.Destroy(); corpses.RemoveAt(0); }
+            corpses.Add(new Corpse { view = view, anim = death, zone = Level.ZoneAt(pos), rig = rig, style = style });
+            if (corpses.Count > 40) { corpses[0].view.Destroy(); corpses[0].rig?.Destroy(); corpses.RemoveAt(0); }
         }
 
         /// <summary>
@@ -583,9 +584,13 @@ namespace Ecos
                 cam.Focus = c + new Vector2(Mathf.Sin(Time.time * 0.25f) * 3, Mathf.Cos(Time.time * 0.2f) * 2);
             }
 
+            cam.AllowLook = State == GameState.Playing;
+            bool lockCursor = State == GameState.Playing && cam.FpsBlend > 0.5f;
+            Cursor.lockState = lockCursor ? CursorLockMode.Locked : CursorLockMode.None;
             if (State == GameState.Playing || State == GameState.Dying)
             {
                 var P = Players[0];
+                cam.EyeHeight = (P.alive ? 1.45f : 0.35f) + P.Height;
                 cam.Focus = P.pos;
                 var lead = (P.Last.aimPoint - P.pos) * 0.22f;
                 cam.Lead = Vector2.ClampMagnitude(lead, 2.6f);
@@ -602,13 +607,19 @@ namespace Ecos
             foreach (var p in Players) p.Tick(dt);
             UpdateRooms(dt);
             UpdateVisibility();
-            for (int i = 0; i < corpses.Count; i++)
+            bool use3D = cam.Blend > 0.5f;
+            foreach (var c in corpses)
             {
-                var c = corpses[i];
                 c.t += dt;
-                corpses[i] = c;
+                float f = Builder.ZoneFade(c.zone);
                 c.view.SetSprite(c.anim.At(c.t));
-                c.view.SetFade(Builder.ZoneFade(c.zone));
+                c.view.SetFade(f);
+                c.view.SpriteVisible(!(use3D && c.rig != null));
+                if (c.rig != null)
+                {
+                    c.rig.Visible = use3D && f > 0.01f;
+                    if (c.rig.Visible) { c.rig.Pose(new RigPose { death = c.t * 1.4f, deathStyle = c.style }); c.rig.SetFade(f); c.rig.SetFlash(0); }
+                }
             }
             Fx.Ambient(cam.Focus, dt, new Color(1f, 0.55f, 0.25f, 0.8f));
             for (int i = 0; i < Enemies.Count; i++) if (!Enemies[i].dead) Enemies[i].Tick(dt);

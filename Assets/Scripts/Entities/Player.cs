@@ -38,6 +38,10 @@ namespace Ecos
         readonly SpriteRenderer gun;
         readonly MaterialPropertyBlock gunMpb = new();
         LightingSystem.PointLight light;
+        VoxelRig rig;                 // modelo 3D (câmeras 3D)
+        Transform viewModel;          // arma em primeira pessoa (presa na câmera)
+        float vmKick, vmBob;
+        public float Height { get; private set; }
 
         public WeaponInstance Weapon => weapons[cur];
 
@@ -52,12 +56,24 @@ namespace Ecos
             gun.transform.SetParent(gunPivot, false);
             gun.sharedMaterial = Materials.Sprite;
             light = LightingSystem.Add(Vector3.zero, 5.5f, new Color(1f, 0.86f, 0.7f), 0.75f);
+            if (VoxelLib.Has("coveiro")) { rig = new VoxelRig("coveiro"); rig.Visible = false; }
             RefreshGun();
         }
 
         public void RefreshGun()
         {
             gun.sprite = SpriteLib.Weapon(Weapon.Id);
+            rig?.SetGun("arma_" + Weapon.Id, new Vector3(0.42f, 0.62f, 0.3f));
+            // arma em primeira pessoa
+            if (viewModel) Object.Destroy(viewModel.gameObject);
+            viewModel = null;
+            if (VoxelLib.Has("arma_" + Weapon.Id) && PixelCamera.I != null)
+            {
+                viewModel = new GameObject("arma_1a_pessoa").transform;
+                viewModel.SetParent(PixelCamera.I.transform, false);
+                VoxelLib.Instantiate("arma_" + Weapon.Id, viewModel);
+                viewModel.gameObject.SetActive(false);
+            }
             reloadT = 0;
             G?.Hud?.Dirty();
         }
@@ -195,6 +211,7 @@ namespace Ecos
             LightingSystem.Add(MathX.ToWorld(muzzle, 0.6f), 4f, d.color, 1.4f, 0.06f);
             Sfx.Play(d.sfx, 0.02f);
             kick = Mathf.Min(1, 0.4f + d.kick * 0.3f);
+            vmKick = 1;
             if (d.kick > 1) G.Shake(d.kick * 0.05f);
             vel -= MathX.Dir(aim) * d.kick * 0.8f;
             G.Stats.shots++;
@@ -203,6 +220,50 @@ namespace Ecos
 
         // ------------------------------------------------------------------ visual
         public void UpdateVisual(float dt)
+        {
+            UpdateVisualSprite(dt);
+            UpdateVisual3D(dt);
+        }
+
+        void UpdateVisual3D(float dt)
+        {
+            var pc = PixelCamera.I;
+            bool use3D = rig != null && pc.Blend > 0.5f;
+            bool firstPerson = pc.FpsBlend > 0.55f;
+            // no 3D o sprite some (a sombra continua) e o modelo aparece; na 1ª pessoa o corpo some
+            if (use3D) { view.SpriteVisible(false); gun.enabled = false; }
+            if (rig != null)
+            {
+                rig.Visible = use3D && !firstPerson;
+                if (rig.Visible)
+                {
+                    float air = roll != null ? Mathf.Sin(Mathf.Clamp01((roll.t - 0.06f) / 0.36f) * Mathf.PI) : 0;
+                    rig.Pose(new RigPose
+                    {
+                        walkPhase = walkT * 12f, walk = moving ? 1 : 0, tuck = air, aim = roll == null && alive ? 1 : 0,
+                        death = alive ? 0 : deathT * 1.2f, deathStyle = 0, kick = kick,
+                    });
+                    rig.SetFlash(flash);
+                    rig.Place(pos, Height, roll != null ? MathX.Angle(roll.dir) : aim);
+                }
+            }
+            if (viewModel)
+            {
+                bool showVm = pc.FpsBlend > 0.95f && alive;
+                viewModel.gameObject.SetActive(showVm);
+                if (showVm)
+                {
+                    vmKick = Mathf.Max(0, vmKick - dt * 9f);
+                    if (moving) vmBob += dt * 9f;
+                    float bx = Mathf.Sin(vmBob) * 0.015f, by = Mathf.Abs(Mathf.Cos(vmBob)) * 0.012f;
+                    viewModel.localPosition = new Vector3(0.2f + bx, -0.2f + by - (roll != null ? 0.06f : 0), 0.42f - vmKick * 0.06f);
+                    viewModel.localRotation = Quaternion.Euler(-vmKick * 8f, -90f, 0);
+                    viewModel.localScale = Vector3.one * 0.55f;
+                }
+            }
+        }
+
+        void UpdateVisualSprite(float dt)
         {
             float h = 0;
             // ângulo na tela (y para cima)
@@ -217,6 +278,7 @@ namespace Ecos
             if (!alive)
             {
                 view.SetSprite(SpriteLib.Get("player", "death").At(deathT));
+                view.SpriteVisible(true);
                 gun.enabled = false;
                 view.SetFlash(0);
                 view.Place(pos, 0);
@@ -252,6 +314,7 @@ namespace Ecos
             view.SetFlash(flash);
             view.SetTint(tint);
             view.Place(pos, h);
+            Height = h;
 
             // arma na mão, girando para a mira
             gunPivot.localPosition = new Vector3(left ? -0.18f : 0.18f, 0.6f, up ? 0.05f : -0.05f);
@@ -266,6 +329,11 @@ namespace Ecos
 
         public void RecreateLight() => light = LightingSystem.Add(Vector3.zero, 5.5f, new Color(1f, 0.86f, 0.7f), 0.75f);
 
-        public void Destroy() { view.Destroy(); LightingSystem.Remove(light); }
+        public void Destroy()
+        {
+            view.Destroy(); LightingSystem.Remove(light);
+            rig?.Destroy();
+            if (viewModel) Object.Destroy(viewModel.gameObject);
+        }
     }
 }

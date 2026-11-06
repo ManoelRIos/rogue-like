@@ -46,7 +46,14 @@ namespace Ecos
                 float c = Mathf.Cos(yaw), sn = Mathf.Sin(yaw);
                 s.move = new Vector2(s.move.x * c - s.move.y * sn, s.move.x * sn + s.move.y * c);
             }
-            s.aimPoint = PixelCamera.I.MouseGame(0.5f);
+            var pc = PixelCamera.I;
+            if (pc.FirstPersonActive)
+            {
+                // mira para onde a câmera olha
+                float yw = pc.LookYaw * Mathf.Deg2Rad;
+                s.aimPoint = p.pos + new Vector2(Mathf.Sin(yw), -Mathf.Cos(yw)) * 10f;
+            }
+            else s.aimPoint = pc.MouseGame(0.5f);
             s.fire = Input.GetMouseButton(0) && !Hud.PointerOverUI;
             s.roll = Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(1);
             s.reload = Input.GetKeyDown(KeyCode.R);

@@ -35,6 +35,7 @@ namespace Ecos
         public BossDef bdef;
         public override bool IsBoss => true;
         public override Color Color => bdef.color;
+        protected override int DeathStyle => 2;
         public override string Name => bdef.name;
         public bool Phase2 => hp < maxHp * 0.5f;
 
@@ -126,6 +127,12 @@ namespace Ecos
             view.SetShadowSize(r * 2.4f * (1 - Mathf.Clamp01(hop / 3f) * 0.5f));
             view.Place(pos, Height);
             if (light != null) { light.pos = MathX.ToWorld(pos, 2.6f) + new Vector3(0, 0, -0.5f); light.intensity = (Phase2 ? 1.8f : 1.4f) * (pre > 0 ? 1.3f : 1f); }
+            bool wind = atk != null && (pre > 0 || atk.windup);
+            UpdateRig(new RigPose
+            {
+                sway = Mathf.Sin(t * 1.6f), phase2 = Phase2,
+                armsUp = wind ? 1 : 0, armsForward = atk != null && !wind ? 1 : 0,
+            });
         }
 
         public override void Die()

@@ -24,7 +24,7 @@ namespace Ecos
     /// <summary>Projéteis do jogador e dos inimigos, com pool de objetos.</summary>
     public class BulletSystem
     {
-        public const float Height = 0.45f;
+        public static float Height => Mathf.Lerp(0.45f, 1.15f, PixelCamera.FirstPersonBlend);
         public readonly List<Bullet> list = new();
         readonly Stack<BulletView> pool = new();
         readonly Transform root;

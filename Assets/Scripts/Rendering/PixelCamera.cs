@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Ecos
 {
-    public enum CameraMode { TwoPointFive, ThreeD }
+    public enum CameraMode { TwoPointFive, ThreeD, FirstPerson }
 
     /// <summary>
     /// Câmera do jogo.
@@ -96,14 +96,23 @@ namespace Ecos
         public static float BillboardPitch;
         float blend;            // 0 = 2.5D, 1 = 3D (animado)
         float blendTarget;
+        float fps, fpsTarget;   // 0 = terceira pessoa, 1 = primeira pessoa (animado)
         public float Blend => blend;
-        public bool Transitioning => !Mathf.Approximately(blend, blendTarget);
+        public float FpsBlend => fps;
+        public static float FirstPersonBlend;            // usado por balas e sprites
+        public bool FirstPersonActive => fps > 0.5f;
+        public bool Transitioning => !Mathf.Approximately(blend, blendTarget) || !Mathf.Approximately(fps, fpsTarget);
+        public float EyeHeight = 1.45f;   // altura dos olhos (o jogo soma o salto)
+        public bool AllowLook;            // mouse controla a visão (só jogando)
+        public float LookYaw, LookPitch;  // visão em primeira pessoa (graus)
+        public float MouseSensitivity = 2.2f;
 
-        /// <summary>Alterna a visão com uma transição de câmera (dolly zoom de ortográfica para perspectiva).</summary>
+        /// <summary>Alterna a visão: 2.5D → 3D (terceira pessoa) → primeira pessoa → 2.5D, sempre animado.</summary>
         public void ToggleMode()
         {
-            blendTarget = blendTarget < 0.5f ? 1f : 0f;
-            Mode = blendTarget > 0.5f ? CameraMode.ThreeD : CameraMode.TwoPointFive;
+            if (Mode == CameraMode.TwoPointFive) { Mode = CameraMode.ThreeD; blendTarget = 1; fpsTarget = 0; }
+            else if (Mode == CameraMode.ThreeD) { Mode = CameraMode.FirstPerson; blendTarget = 1; fpsTarget = 1; LookYaw = yaw; LookPitch = 8; }
+            else { Mode = CameraMode.TwoPointFive; blendTarget = 0; fpsTarget = 0; yaw = LookYaw; }
         }
 
         static float Smooth(float x) => x * x * x * (x * (x * 6 - 15) + 10);   // smootherstep
@@ -113,11 +122,23 @@ namespace Ecos
             EnsureRT();
             float dt = Time.unscaledDeltaTime;
             if (Input.GetKeyDown(KeyCode.F2) || Input.GetKeyDown(KeyCode.V)) ToggleMode();
-            blend = Mathf.MoveTowards(blend, blendTarget, dt / TransitionTime);
+            // ordem das transições: subir 2.5D→3D antes de entrar na cabeça; sair da cabeça antes de voltar ao 2.5D
+            if (fpsTarget < fps || blend >= 0.999f) fps = Mathf.MoveTowards(fps, fpsTarget, dt / 0.8f);
+            if (fps <= 0.001f || blendTarget > blend) blend = Mathf.MoveTowards(blend, blendTarget, dt / TransitionTime);
             float e = Smooth(blend);
+            float f1 = Smooth(fps);
+            FirstPersonBlend = f1;
+
+            // olhar com o mouse na primeira pessoa
+            if (fps > 0.5f && AllowLook)
+            {
+                LookYaw += Input.GetAxis("Mouse X") * MouseSensitivity;
+                LookPitch = Mathf.Clamp(LookPitch - Input.GetAxis("Mouse Y") * MouseSensitivity, -35f, 40f);
+                yaw = LookYaw;
+            }
 
             // giro da câmera no 3D (Z / C)
-            if (blendTarget > 0.5f)
+            if (blendTarget > 0.5f && fpsTarget < 0.5f)
             {
                 if (Input.GetKey(KeyCode.Z)) yaw -= 100 * dt;
                 if (Input.GetKey(KeyCode.C)) yaw += 100 * dt;
@@ -170,10 +191,23 @@ namespace Ecos
                 transform.rotation = rot;
                 transform.position = MathX.ToWorld(cur + sh, Mathf.Lerp(0, 0.6f, e)) + rot * new Vector3(0, 0, -dist);
                 float near = Mathf.Max(0.1f, dist - 45f), far = dist + 60f;
+                var pos3 = transform.position;
+                if (f1 > 0.0001f)
+                {
+                    // ---- primeira pessoa: a câmera mergulha até os olhos do jogador
+                    var eye = MathX.ToWorld(Focus, EyeHeight);
+                    var rotF = Quaternion.Euler(LookPitch, LookYaw, 0);
+                    transform.position = Vector3.Lerp(pos3, eye, f1);
+                    transform.rotation = Quaternion.Slerp(rot, rotF, f1);
+                    fov = Mathf.Lerp(fov, 72f, f1);
+                    near = Mathf.Lerp(near, 0.03f, f1);
+                    far = Mathf.Lerp(far, 60f, f1);
+                    curYaw = Mathf.LerpAngle(curYaw, LookYaw, f1);
+                }
                 Cam.projectionMatrix = Matrix4x4.Perspective(fov, aspect, near, far) * Matrix4x4.Scale(new Vector3(1, yScale, 1));
             }
             BillboardYaw = curYaw;
-            BillboardPitch = 28f * e;
+            BillboardPitch = 28f * e * (1 - f1);   // em primeira pessoa os sprites ficam em pé
             Billboard = Quaternion.Euler(BillboardPitch, BillboardYaw, 0);
         }
 

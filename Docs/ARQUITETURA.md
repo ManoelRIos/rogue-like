@@ -22,6 +22,20 @@ No 3D, `LocalInputSource` gira o movimento pelo ângulo da câmera e a mira cont
 do chão (`MouseGame`). Próximos passos possíveis: esconder paredes que ficam entre a câmera e o jogador,
 câmera em terceira pessoa mais baixa e trocar alguns sprites por modelos low-poly.
 
+## Primeira pessoa e modelos 3D
+
+- `PixelCamera` tem 3 modos: `TwoPointFive`, `ThreeD` e `FirstPerson`; `ToggleMode` percorre os três.
+  A ida para a primeira pessoa só começa depois que o 3D terminou; a volta sai da cabeça antes de voltar ao 2.5D.
+  Na primeira pessoa a câmera interpola até `EyeHeight` (1,45 + altura do salto), o FOV vai para 72° e
+  `LookYaw/LookPitch` vêm do mouse (cursor preso enquanto joga).
+- `LocalInputSource` mira para onde a câmera olha e anda relativo a ela; `BulletSystem.Height` sobe as balas
+  para a altura dos olhos conforme `PixelCamera.FirstPersonBlend`.
+- `VoxelLib` lê `Resources/Voxels/*.json` (gerados por `models3d.py`) e monta uma malha por parte, só com as
+  faces visíveis e sombreamento por face nas cores dos vértices; partes emissivas (chamas, olhos) usam o
+  material sem iluminação. `VoxelRig` monta a hierarquia pelos pivôs e anima por código com `RigPose`.
+- Com `Blend > 0.5` cada entidade esconde o sprite e mostra o modelo (a sombra continua); na primeira pessoa
+  o modelo do jogador some e entra a arma presa na câmera. Entidades sem modelo continuam como billboards.
+
 ## Transição entre salas
 
 `LevelBuilder` agrupa os renderers e as luzes de cada zona. `ShowOnly` só define o alvo; a cada quadro a

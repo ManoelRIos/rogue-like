@@ -96,10 +96,10 @@ namespace Ecos
                 var c = flashColor; c.a *= flashT / flashMax;
                 ui.Rect(0, 0, W, H, c);
             }
-            // mira
+            // mira (no centro da tela em primeira pessoa)
             if (st == GameState.Playing)
             {
-                var m = PixelCamera.I.MouseRT();
+                var m = PixelCamera.I.FirstPersonActive ? new Vector2(W / 2f, H / 2f) : PixelCamera.I.MouseRT();
                 float x = Mathf.Round(m.x), y = Mathf.Round(m.y);
                 var dark = new Color(0.05f, 0.02f, 0.05f);
                 ui.Rect(x - 5, y - 1, 3, 3, dark); ui.Rect(x + 3, y - 1, 3, 3, dark); ui.Rect(x - 1, y - 5, 3, 3, dark); ui.Rect(x - 1, y + 3, 3, 3, dark);
@@ -201,18 +201,23 @@ namespace Ecos
         void DrawViewToggle(float x, float y, float w)
         {
             var pc = PixelCamera.I;
-            bool to3D = pc.Mode == CameraMode.ThreeD;
-            string label = to3D ? "VISÃO 2.5D" : "VISÃO 3D";
+            string label = pc.Mode switch
+            {
+                CameraMode.TwoPointFive => "VISÃO: 2.5D",
+                CameraMode.ThreeD => "VISÃO: 3D",
+                _ => "VISÃO: 1ª PESSOA",
+            };
             var m = pc.MouseRT();
             const float h = 13;
             bool hover = m.x >= x && m.x <= x + w && m.y >= y && m.y <= y + h;
             PointerOverUI = hover;
             ui.Frame(x, y, w, h, hover ? new Color(0.25f, 0.18f, 0.24f) : Panel, hover ? Accent : Edge);
             // barra que mostra o progresso da transição
-            ui.Rect(x + 1, y + h - 2, (w - 2) * pc.Blend, 1, Accent);
+            ui.Rect(x + 1, y + h - 2, (w - 2) * (pc.Blend * 0.5f + pc.FpsBlend * 0.5f), 1, Accent);
             ui.Text(label, x + w / 2, y + 3, hover ? Accent : Ink, 1, Align.Center);
             if (hover && Input.GetMouseButtonDown(0)) { pc.ToggleMode(); Sfx.Play("select"); }
-            if (pc.Mode == CameraMode.ThreeD) ui.Text("Z/C GIRA", x + w, y + h + 3, Dim, 1, Align.Right);
+            if (pc.Mode == CameraMode.ThreeD) ui.Text("Z/C GIRA  V TROCA", x + w, y + h + 3, Dim, 1, Align.Right);
+            if (pc.Mode == CameraMode.FirstPerson) ui.Text("MOUSE OLHA  V TROCA", x + w, y + h + 3, Dim, 1, Align.Right);
         }
 
         void DrawMinimap(float x, float y, float w, float h)
