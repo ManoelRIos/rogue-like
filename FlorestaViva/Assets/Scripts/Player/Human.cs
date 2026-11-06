@@ -195,7 +195,7 @@ namespace Floresta
             for (int k = h0; k < mb.v.Count; k++)                                                                  // ponta curvada para trás
             {
                 var q = mb.v[k]; float up = Mathf.Max(0, q.y - 0.2f);
-                mb.v[k] = new Vector3(q.x, 0.2f + up * 0.75f, q.z - up * up * 2.4f);
+                mb.v[k] = new Vector3(q.x, 0.2f + up * 0.35f, q.z - up * 1.1f);                  // cai para trás, macia
             }
             mb.Box(new Vector3(-0.05f, 0.105f, 0.1f), new Vector3(-0.022f, 0.13f, 0.112f), Eye);                  // olhos
             mb.Box(new Vector3(0.022f, 0.105f, 0.1f), new Vector3(0.05f, 0.13f, 0.112f), Eye);
@@ -229,15 +229,15 @@ namespace Floresta
             }
 
             // ponto onde o cachecol de pano (simulado) se prende: atrás do pescoço
-            r.scarf = Node("cachecol", r.chest, new Vector3(0.04f, 0.3f, -0.09f));
+            r.scarf = Node("cachecol", r.chest, new Vector3(0.05f, 0.27f, -0.15f));                               // na superfície das costas
             mb = new MeshBuilder { SmoothBlobs = 0.7f };
-            mb.Blob(new Vector3(-0.04f, -0.01f, 0.07f), new Vector3(0.12f, 0.05f, 0.11f), Sash, 0.03f, rng, 1);    // volta no pescoço
+            mb.Blob(new Vector3(-0.05f, 0.02f, 0.13f), new Vector3(0.12f, 0.05f, 0.11f), Sash, 0.03f, rng, 1);    // volta no pescoço
             Part("cachecol_m", r.scarf, mb, Vector3.zero);
 
             r.tool = Mats.Object("ferramenta", Rig.ToolMesh(0), Mats.LowPoly, r.hand[1]).transform;
             r.tool.localPosition = new Vector3(0, -0.06f, 0.01f);
             r.tool.localRotation = Quaternion.Euler(80, 0, 0);
-            r.ribbon = new ClothRibbon(r, Sash, Color.Lerp(Sash, Col.Hex("#ffd0a0"), 0.5f));
+            r.ribbon = new ClothRibbon(r, Sash, Color.Lerp(Sash, Col.Hex("#b0503a"), 0.6f));
             r.renderers = r.root.GetComponentsInChildren<Renderer>(true);
             var fp = new System.Collections.Generic.List<Renderer>();
             fp.AddRange(r.fore[0].GetComponentsInChildren<Renderer>(true));
@@ -246,11 +246,23 @@ namespace Floresta
             return r;
         }
 
+        public int ToolIndex;
         public void SetTool(int i)
         {
+            ToolIndex = i;
             tool.GetComponent<MeshFilter>().sharedMesh = Rig.ToolMesh(i);
-            tool.localRotation = i <= 1 ? Quaternion.Euler(80, 0, 0) : Quaternion.Euler(10, 0, 0);
         }
+
+        /// <summary>Como a ferramenta fica na mão: carregada pendurada (cabeça para baixo) e virada para frente só no golpe.</summary>
+        public void PoseTool(float action, float dt)
+        {
+            float use = action > 0 ? Mathf.Clamp01(action / 0.15f) * Mathf.Clamp01((1 - action) / 0.15f) : 0;
+            toolBlend = Mathf.MoveTowards(toolBlend, use, dt * 8f);
+            var carry = ToolIndex <= 1 ? Quaternion.Euler(158, 0, 0) : Quaternion.Euler(10, 0, 0);
+            var swing = ToolIndex <= 1 ? Quaternion.Euler(80, 0, 0) : Quaternion.Euler(10, 0, 0);
+            tool.localRotation = Quaternion.Slerp(carry, swing, Ease.Smooth(toolBlend));
+        }
+        float toolBlend;
     }
 
     /// <summary>
@@ -543,6 +555,7 @@ namespace Floresta
             r.UpdateSkirt(flares);
             float packT = bob * 120f + landDip * 60f + accLocal.z * -0.8f;
             r.pack.localRotation = Quaternion.Euler(packS.Step(packT, 3f, 0.3f, dt), 0, packSide.Step(-velL.x * 4 + bk * 0.5f, 2.5f, 0.35f, dt));
+            r.PoseTool(action, dt);
             r.ribbon?.Step(dt, vel);
         }
 
