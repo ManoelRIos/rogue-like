@@ -9,6 +9,9 @@ com todo o conteúdo montado por código — não há cenas ou prefabs para conf
 > A imagem acima é uma prévia estática gerada com a mesma projeção e os mesmos sprites do jogo
 > (`Tools/ArtGen/mock_render.py`). A versão web antiga (Three.js) continua na branch `web`.
 
+> **Outro jogo neste repositório:** [`FlorestaViva/`](FlorestaViva/README.md) — sobrevivência co-op 3D low-poly
+> (floresta de dia, terror à noite). É um projeto Unity separado: abra a pasta `FlorestaViva` no Unity Hub.
+
 ## Como abrir
 
 1. Unity Hub → **Add project from disk** → selecione esta pasta.
