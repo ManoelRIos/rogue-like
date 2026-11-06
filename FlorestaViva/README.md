@@ -10,6 +10,20 @@ Sobrevivência cooperativa em 3D low-poly. **De dia** a floresta é aconchegante
 2. Na primeira abertura o script `Assets/Editor/FlorestaSetup.cs` cria a cena `Assets/Scenes/Floresta.unity`, configura camadas, sombras e build. (Se precisar repetir: menu **Floresta → Configurar projeto**.)
 3. Aperte **Play**. Tudo — terreno, árvores, personagens, sons — é gerado por código, não há assets para importar.
 
+## Roteiro de teste no Unity
+
+1. Abra a pasta no Hub e espere a importação. No console deve aparecer **"[Floresta Viva] Projeto configurado. Aperte Play."** e a cena `Floresta` fica aberta.
+   - Se o Unity perguntar sobre reiniciar por causa do *Input System*, aceite (o jogo usa o Input clássico).
+2. **Play.** Tela "a floresta está crescendo…" por alguns segundos, depois você aparece ao lado da fogueira de manhã.
+3. **Mundo:** ande até a borda da clareira, olhe as árvores balançando, siga a trilha para o norte até o rio.
+4. **Coleta (tecla 1):** segure o clique numa árvore até ela tombar; colha um arbusto (frutinhas, às vezes sementes); quebre uma pedra.
+5. **Fazenda:** 2 enxada → clique no chão da clareira; 3 sementes → clique no canteiro (Q troca); 4 regador → clique no canteiro; vá ao rio e clique para encher. Segure **T** para ver crescer; colha com clique quando ficar madura.
+6. **Noite:** aperte **N**. Neblina, vagalumes, olhos no escuro; Vultos saem da mata. Afaste-se da fogueira para eles virem; use o machado. Deixe uma planta longe do fogo e veja o aviso "A PLANTAÇÃO!".
+7. **Fogueira:** com madeira, **E** perto do fogo. Deixe apagar para ver a base ficar sem proteção.
+8. **V** alterna 1ª/3ª pessoa; **Esc** pausa e mostra os controles.
+
+Se algo der erro, copie a **primeira** mensagem vermelha do Console (as outras costumam ser consequência dela).
+
 ## Controles
 
 | Tecla | Ação |
@@ -24,6 +38,7 @@ Sobrevivência cooperativa em 3D low-poly. **De dia** a floresta é aconchegante
 | **E** (perto da fogueira) | alimentar a fogueira com 1 madeira |
 | Esc | pausa + lista de controles |
 | **N** | *teste:* pula direto para o anoitecer / amanhecer |
+| **T** (segurar) | *teste:* acelera o mundo ×10 (dia, fogueira, plantas) |
 
 ## O que já existe (marco 1 — Mundo + dia/noite)
 

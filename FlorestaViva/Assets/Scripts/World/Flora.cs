@@ -24,12 +24,14 @@ namespace Floresta
         {
             baseRot = transform.rotation; basePos = transform.position; maxHp = hp;
             rend = GetComponent<Renderer>(); col = GetComponent<Collider>();
+            enabled = false;          // só roda Update enquanto treme, cai ou espera para voltar (milhares de plantas)
         }
 
         /// <summary>Recebe um golpe; devolve quantos itens caíram.</summary>
         public int Hit(Vector3 from)
         {
             if (deadT >= 0) return 0;
+            enabled = true;
             hp--;
             shake = 0.25f;
             Audio.Play(drop == Item.Madeira ? "chop" : drop == Item.Pedra ? "mine" : "rustle");
@@ -53,7 +55,7 @@ namespace Floresta
             {
                 shake -= dt;
                 transform.rotation = baseRot * Quaternion.Euler(Mathf.Sin(Time.time * 60) * shake * 8, 0, Mathf.Cos(Time.time * 55) * shake * 8);
-                if (shake <= 0 && deadT < 0) transform.rotation = baseRot;
+                if (shake <= 0 && deadT < 0) { transform.rotation = baseRot; enabled = false; }
             }
             if (deadT >= 0)
             {
@@ -76,6 +78,7 @@ namespace Floresta
             transform.localScale = Vector3.one * scale0;
             if (rend) rend.enabled = true;
             if (col) col.enabled = true;
+            enabled = false;
         }
 
         public float scale0 = 1;

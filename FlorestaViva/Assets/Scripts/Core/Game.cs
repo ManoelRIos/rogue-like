@@ -109,6 +109,8 @@ namespace Floresta
             if (!Hud.Paused && Cursor.lockState != CursorLockMode.Locked && Input.GetMouseButtonDown(0)) Lock(true);
             float dt = Time.deltaTime;
             if (Hud.Paused) return;
+            // teste: segurar T acelera o mundo ×10 (dia, fogueira e plantas)
+            float worldDt = Input.GetKey(KeyCode.T) ? dt * 10f : dt;
 
             // câmera
             Rig.Look(new Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y")) * MouseSensitivity, Input.mouseScrollDelta.y);
@@ -150,9 +152,9 @@ namespace Floresta
 
             Rig.Update(p.transform, dt);
             var camPos = Rig.cam.transform.position;
-            Cycle.Update(dt, camPos);
-            Fire.Update(dt, Cycle.Darkness);
-            Farm.Update(dt, Cycle.DayLength);
+            Cycle.Update(worldDt, camPos);
+            Fire.Update(worldDt, Cycle.Darkness);
+            Farm.Update(worldDt, Cycle.DayLength);
             Farm.ShowMarker(p.alive ? p.AimCell : null, p.AimOk);
             Life.Update(camPos, Cycle.Darkness, Cycle.time);
             Flora.Draw(camPos);

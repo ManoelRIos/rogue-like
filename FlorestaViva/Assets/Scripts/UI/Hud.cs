@@ -209,7 +209,7 @@ namespace Floresta
                     "1 machado   2 enxada   3 sementes (Q troca)   4 regador\n" +
                     "CLIQUE  usar a ferramenta: cortar, arar, plantar, regar, colher, atacar\n" +
                     "F  comer      E  alimentar a fogueira      o regador enche no rio\n" +
-                    "ESC  voltar ao jogo\n\n" +
+                    "ESC  voltar ao jogo      (teste) N pula para a noite · segure T acelera o tempo\n\n" +
                     "De dia a floresta é calma. À noite os Vultos saem da mata.\n" +
                     "Mantenha a fogueira acesa: a luz dela protege a base e a horta.\n" +
                     "As plantas só crescem com a terra molhada.";

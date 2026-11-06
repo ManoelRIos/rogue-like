@@ -55,7 +55,7 @@ namespace Floresta
             skyMat = Mats.Sky;
             go.GetComponent<MeshRenderer>().sharedMaterial = skyMat;
             go.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            go.transform.localScale = Vector3.one * 900;
+            go.transform.localScale = Vector3.one * 760;   // raio 380 m: dentro do plano distante da câmera (420 m)
             sky = go.transform;
 
             RenderSettings.fog = true;
