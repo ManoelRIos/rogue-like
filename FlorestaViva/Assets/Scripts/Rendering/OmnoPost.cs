@@ -28,7 +28,7 @@ namespace Floresta
             tint = Color.Lerp(Color.Lerp(new Color(1.02f, 1f, 0.97f), new Color(1.08f, 0.98f, 0.9f), sunset), new Color(0.86f, 0.92f, 1.08f), darkness);
             saturation = Mathf.Lerp(1.14f, 0.9f, darkness);
             intensity = Mathf.Lerp(0.6f, 0.95f, Mathf.Max(darkness, sunset * 0.6f));
-            threshold = Mathf.Lerp(0.85f, 0.55f, darkness);
+            threshold = Mathf.Lerp(0.92f, 0.55f, darkness);
             lift = Color.Lerp(new Color(0.012f, 0.018f, 0.045f), new Color(0.01f, 0.012f, 0.04f), darkness);
             vignette = Mathf.Lerp(0.26f, 0.42f, darkness);
         }

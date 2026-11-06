@@ -91,6 +91,15 @@ Se algo der erro, copie a **primeira** mensagem vermelha do Console (as outras c
 - **Pós-processamento** (`Rendering/OmnoPost.cs`): bloom suave (sol, fogo, vagalumes, olhos), correção de cor que muda com a hora (quente de dia, dourada no pôr do sol, azul à noite) e vinheta.
 - **Luzes do rio**: orbes turquesa flutuando sobre a água no lusco-fusco.
 
+## Peregrino e atmosfera (atualização)
+
+- **Novo personagem (original, no estilo suave e estilizado)**: o Peregrino — túnica clara até acima do joelho, manto/capuz macio com ponta caída na cor do jogador, faixa coral, mangas largas, bolsa na cintura e cajado nas costas com **cristal que acende à noite** (luz própria para andar no escuro; não espanta os Vultos).
+- **Saia da túnica contínua e deformável**: 10 setores com mola abrem quando a perna passa, ao correr (vento relativo), ao cair e com o vento — sem vãos nem "placas" soltas (era o bug visual das abas do casaco).
+- **Cachecol de pano com física** (`Player/Cloth.cs`): corrente de pontos com gravidade, vento, inércia do corpo e colisão com o tronco; esvoaça ao correr e pular.
+- **Rastros de vento**: fitas brancas que serpenteiam a favor do vento perto de você (mais quando venta forte).
+- **Feixes de sol** atravessando a mata quando o sol está baixo (manhã e fim de tarde).
+- Chão com **manchas largas e suaves** (dourado/turquesa) e quase sem ruído de triângulo; morros ainda mais macios.
+
 ## Próximos marcos
 
 Veja [Docs/ROTEIRO.md](Docs/ROTEIRO.md): modo construção, veículo, aventuras pelo mapa (ruínas, baús, missões) e **co-op online** (até 4, host + código de convite).

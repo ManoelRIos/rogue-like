@@ -148,7 +148,10 @@ namespace Floresta
             if (p.y < 1.1f) c = Color.Lerp(c, Sand, Mathf.InverseLerp(1.1f, 0.2f, p.y));
             if (p.y < -0.4f) c = Color.Lerp(Sand, Mud, Mathf.InverseLerp(-0.4f, -2.2f, p.y));
             if (slope > 0.35f || p.y > 16f) c = Color.Lerp(c, Color.Lerp(Rock, RockD, rng.Value), Mathf.InverseLerp(0.35f, 0.55f, Mathf.Max(slope, (p.y - 16f) / 12f)));
-            return rng.Vary(c, 0.02f);
+            // manchas largas e suaves (dourado/turquesa) em vez de ruído triângulo a triângulo
+            float patch = noise.Perlin(p.x * 0.012f, p.z * 0.012f, 7);
+            if (p.y > 0.6f && slope < 0.35f) c = Color.Lerp(c, patch > 0.5f ? Col.Hex("#c4d462") : Col.Hex("#4c9a6a"), Mathf.Abs(patch - 0.5f) * 0.55f);
+            return rng.Vary(c, 0.008f);
         }
 
         // ------------------------------------------------------------------ construção
@@ -227,7 +230,7 @@ namespace Floresta
             mb.Tri(a, b, c, Col.A(col, 0));
             // facetas bem de leve: a normal puxa para a curva "ideal" do morro
             int k = mb.v.Count - 3;
-            mb.Soften(k, Normal(a.x, a.z), 0.55f); mb.Soften(k + 1, Normal(b.x, b.z), 0.55f); mb.Soften(k + 2, Normal(c.x, c.z), 0.55f);
+            mb.Soften(k, Normal(a.x, a.z), 0.8f); mb.Soften(k + 1, Normal(b.x, b.z), 0.8f); mb.Soften(k + 2, Normal(c.x, c.z), 0.8f);
         }
 
         static float Hash(int x, int y)

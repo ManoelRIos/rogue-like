@@ -159,6 +159,11 @@ namespace Floresta
             if (tool == Tool.Regador && swing > 0.35f && swing < 0.8f && water > 0)
                 Fx.Drops(rig.tool.position + rig.tool.forward * 0.25f + rig.tool.up * 0.05f, transform.forward);
             foreach (var r in rig.renderers) r.enabled = !FirstPerson;
+            rig.ribbon?.SetVisible(!FirstPerson);
+            // cristal do cajado: brilho fraco de dia, acende à noite (ilumina o caminho, não espanta os Vultos)
+            float dark = Game.I?.Cycle != null ? Game.I.Cycle.Darkness : 0;
+            if (rig.staffLight) { rig.staffLight.intensity = dark * 1.3f * (0.9f + Mathf.PerlinNoise(Time.time * 1.7f, 3) * 0.2f); rig.staffLight.enabled = dark > 0.05f; }
+            if (rig.crystalMat) rig.crystalMat.SetColor("_Color", new Color(1, 1, 1, 0.35f + dark * 0.9f));
             if (FirstPerson) foreach (var r in rig.firstPerson) r.enabled = true;
             Wind.Push(transform.position, 0.9f);
         }

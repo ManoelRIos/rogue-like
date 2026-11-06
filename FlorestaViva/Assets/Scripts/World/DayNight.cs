@@ -37,6 +37,8 @@ namespace Floresta
             (1.00f, Col.Hex("#090d28"), Col.Hex("#1a1e46"), Col.Hex("#000000"), Col.Hex("#1c2350"), Col.Hex("#121734")),
         };
         public OmnoPost Post;
+        /// <summary>Direção para o sol (mesmo à noite, abaixo do horizonte).</summary>
+        public Vector3 SunDir => -sun.transform.forward;
 
         public DayNight()
         {

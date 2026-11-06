@@ -15,7 +15,7 @@ namespace Floresta
         public float MouseSensitivity = 2.2f;
 
         public World World; public Flora Flora; public Life Life; public DayNight Cycle;
-        public Campfire Fire; public NightDirector Director; public CameraRig Rig; public Hud Hud; public Farm Farm;
+        public Campfire Fire; public NightDirector Director; public CameraRig Rig; public Hud Hud; public Farm Farm; public Atmosphere Atmos;
         int selectedTool;
         public readonly List<PlayerController> Players = new();
         public PlayerController Player => Players.Count > 0 ? Players[0] : null;
@@ -55,6 +55,7 @@ namespace Floresta
             Fire = new Campfire(World, World.Root);
             Fx.Init(World);
             Life = new Life(Flora, World, World.Root);
+            Atmos = new Atmosphere(World);
             Cycle = new DayNight { Post = Rig.Post };
             Farm = new Farm(World, Fire, World.Root);
             Director = new NightDirector(World, Flora, Fire) { farm = Farm };
@@ -160,6 +161,7 @@ namespace Floresta
             Farm.Update(worldDt, Cycle.DayLength);
             Farm.ShowMarker(p.alive ? p.AimCell : null, p.AimOk);
             Life.Update(camPos, Cycle.Darkness, Cycle.time);
+            Atmos.Update(dt, Rig.cam, Cycle.Darkness, Time.time, Cycle.SunDir);
             Flora.Draw(camPos);
             Director.Tick(Cycle.IsNight, Cycle.Darkness, Players, Rig.cam, dt);
             foreach (var c in Director.creatures)          // os Vultos também abrem caminho na grama

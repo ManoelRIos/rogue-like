@@ -4,21 +4,55 @@ using UnityEngine;
 namespace Floresta
 {
     /// <summary>
-    /// Andarilho com esqueleto completo (quadril, coluna, peito, pescoço, cabeça, ombro→cotovelo→mão,
-    /// coxa→joelho→pé), proporções de adulto e peças soltas (aba do casaco, mochila, cachecol) que balançam.
+    /// Peregrino (personagem original, visual suave e estilizado): esqueleto completo (quadril, coluna, peito,
+    /// pescoço, cabeça, ombro→cotovelo→mão, coxa→joelho→pé), túnica em painéis que reagem às pernas e ao vento,
+    /// cachecol de pano com física, bolsa com mola e cajado com cristal que acende à noite.
     /// </summary>
     public class HumanRig
     {
-        public Transform root, pelvis, spine, chest, neck, head, tail, pack, scarf, tool;
+        public Transform root, pelvis, spine, chest, neck, head, pack, scarf, tool, staffTip;
+        public Vector3[] robeDir;
+        public Mesh skirt;
+        public Vector3[] skirtV;
+        public const int SkirtCols = 24, SkirtRows = 4;
+        const float SkirtLen = 0.4f;
+
+        /// <summary>Monta a saia: para cada coluna ao redor do quadril, abre no ângulo interpolado dos 10 setores.</summary>
+        public void UpdateSkirt(float[] flareDeg)
+        {
+            for (int j = 0; j < SkirtCols; j++)
+            {
+                float u = j / (float)SkirtCols * 10f;
+                int i0 = Mathf.FloorToInt(u) % 10, i1 = (i0 + 1) % 10;
+                float f = Mathf.Lerp(flareDeg[i0], flareDeg[i1], u - Mathf.Floor(u)) * Mathf.Deg2Rad;
+                float a = j / (float)SkirtCols * Mathf.PI * 2;
+                var d = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a));
+                var top = new Vector3(d.x * 0.158f, -0.05f, d.z * 0.132f);
+                var outward = new Vector3(d.x, 0, d.z * 0.9f);
+                for (int k = 0; k < SkirtRows + 2; k++)
+                {
+                    float t = Mathf.Min(1, k / (float)SkirtRows) * SkirtLen;
+                    var p = top + outward * (Mathf.Sin(f) * t + t * 0.12f) + Vector3.down * (Mathf.Cos(f) * t);
+                    if (k == SkirtRows + 1) p += Vector3.up * 0.045f + outward * 0.004f;      // barra colorida (dobra para dentro)
+                    skirtV[k * SkirtCols + j] = p;
+                }
+            }
+            skirt.vertices = skirtV;
+            skirt.RecalculateNormals();
+            skirt.RecalculateBounds();
+        }
+        public Light staffLight;
+        public Material crystalMat;
+        public ClothRibbon ribbon;
         public readonly Transform[] thigh = new Transform[2], shin = new Transform[2], foot = new Transform[2],
             upper = new Transform[2], fore = new Transform[2], hand = new Transform[2];
         public Renderer[] renderers, firstPerson;   // na 1ª pessoa só antebraços, mãos e ferramenta aparecem
         public const float Thigh = 0.40f, Shin = 0.38f, Ankle = 0.075f, HipHeight = 0.86f;
         public static readonly Vector3 HipL = new(-0.095f, -0.03f, 0), HipR = new(0.095f, -0.03f, 0);
 
-        static readonly Color Skin = Col.Hex("#d9a882"), SkinD = Col.Hex("#b98764"), Boot = Col.Hex("#3a2a1e"), Sole = Col.Hex("#1e1712"),
-            Pants = Col.Hex("#4a4038"), Belt = Col.Hex("#2e2218"), Buckle = Col.Hex("#c8a050"), Scarf = Col.Hex("#d8b04a"),
-            Pack = Col.Hex("#7a5a36"), PackD = Col.Hex("#5a4026"), Roll = Col.Hex("#8a6e4e"), Eye = Col.Hex("#1a1416"), Hair = Col.Hex("#4a3020");
+        static readonly Color Skin = Col.Hex("#eec0a0"), SkinD = Col.Hex("#d49a7c"), Blush = Col.Hex("#f0a0a0"), Boot = Col.Hex("#6a4a36"), Sole = Col.Hex("#3a2a20"),
+            Pants = Col.Hex("#4e5068"), Wrap = Col.Hex("#d8c8a8"), Robe = Col.Hex("#e8dcc4"), Sash = Col.Hex("#ec7a52"),
+            Satchel = Col.Hex("#a8784c"), Crystal = Col.Hex("#9af6ff"), Eye = Col.Hex("#2a2030");
 
         static Transform Node(string n, Transform parent, Vector3 pos)
         {
@@ -36,142 +70,174 @@ namespace Floresta
 
         public static HumanRig Build(Color cloak, Transform parent)
         {
+            // Peregrino: túnica clara até abaixo do joelho (em painéis que balançam), capuz macio com ponta,
+            // gola/manto na cor do jogador, faixa coral na cintura, mangas largas, bolsa na cintura,
+            // cachecol comprido de pano (física) e cajado nas costas com cristal que brilha.
             var r = new HumanRig();
             var rng = new Rng(3);
-            var cloakD = Color.Lerp(cloak, Color.black, 0.3f);
-            var cloakL = Color.Lerp(cloak, Color.white, 0.12f);
-            r.root = Node("Andarilho", parent, Vector3.zero);
+            var robe = Robe; var robeD = Color.Lerp(Robe, Col.Hex("#b8a888"), 0.55f);
+            var mantle = cloak; var mantleD = Color.Lerp(cloak, Color.black, 0.25f);
+            r.root = Node("Peregrino", parent, Vector3.zero);
 
-            // ---------------- quadril e pernas
+            // ---------------- quadril, saia da túnica e pernas
             r.pelvis = Node("quadril", r.root, new Vector3(0, HipHeight, 0));
             var mb = new MeshBuilder();
-            mb.Cylinder(new Vector3(0, -0.1f, 0), 0.17f, 0.15f, 0.16f, 8, Pants, 0, 0, 0, rng);
-            mb.Cylinder(new Vector3(0, 0.04f, 0), 0.05f, 0.168f, 0.168f, 8, Belt, 0, 0, 0, rng);
-            mb.Scale(new Vector3(1, 1, 0.8f));
-            mb.Box(new Vector3(-0.035f, 0.04f, 0.125f), new Vector3(0.035f, 0.09f, 0.145f), Buckle);
-            mb.Box(new Vector3(0.1f, -0.06f, 0.06f), new Vector3(0.17f, 0.05f, 0.14f), PackD, rng);            // bolsinha na cintura
+            mb.Cylinder(new Vector3(0, -0.09f, 0), 0.16f, 0.15f, 0.155f, 10, robe, 0, 0, 0, rng);
+            mb.Cylinder(new Vector3(0, 0.03f, 0), 0.07f, 0.165f, 0.16f, 10, Sash, 0, 0, 0, rng);            // faixa
+            mb.Scale(new Vector3(1, 1, 0.82f));
             Part("quadril_m", r.pelvis, mb, Vector3.zero);
-            // aba de trás do casaco (balança com mola)
-            r.tail = Node("aba", r.pelvis, new Vector3(0, 0.02f, -0.12f));
+            // ponta da faixa caindo do lado
             mb = new MeshBuilder();
-            for (int sd = -1; sd <= 1; sd += 2)      // duas abas do casaco, levemente curvas
-            {
-                var t0 = new Vector3(sd * 0.02f, 0, 0); var t1 = new Vector3(sd * 0.165f, 0, 0.01f);
-                var c0 = new Vector3(sd * 0.025f, -0.18f, -0.03f); var c1 = new Vector3(sd * 0.18f, -0.18f, -0.02f);
-                var b0 = new Vector3(sd * 0.03f, -0.34f, -0.045f); var b1 = new Vector3(sd * 0.19f, -0.34f, -0.035f);
-                mb.Quad(t0, t1, c1, c0, cloak); mb.Quad(c0, c1, b1, b0, cloakD);
-            }
-            Part("aba_m", r.tail, mb, Vector3.zero);
+            mb.Box(new Vector3(0.12f, -0.26f, 0.06f), new Vector3(0.17f, 0.06f, 0.09f), Sash);
+            Part("faixa", r.pelvis, mb, Vector3.zero);
+            // bolsa do peregrino
+            r.pack = Node("bolsa", r.pelvis, new Vector3(-0.17f, -0.02f, -0.02f));
+            mb = new MeshBuilder { SmoothBlobs = 0.6f };
+            mb.Blob(new Vector3(-0.03f, -0.1f, 0), new Vector3(0.07f, 0.09f, 0.1f), Satchel, 0.04f, rng, 1);
+            mb.Box(new Vector3(-0.1f, -0.06f, -0.08f), new Vector3(-0.09f, 0.0f, 0.08f), Col.Hex("#6a4a30"));
+            Part("bolsa_m", r.pack, mb, Vector3.zero);
+            // saia da túnica: uma malha contínua (sem vãos) que o animador deforma a cada quadro —
+            // 10 "setores" com mola abrem com a perna que passa, com a corrida, o vento e as quedas
+            r.robeDir = new Vector3[10];
+            for (int i = 0; i < 10; i++) { float a = i / 10f * Mathf.PI * 2; r.robeDir[i] = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)); }
+            r.skirt = new Mesh { name = "saia" };
+            r.skirt.MarkDynamic();
+            r.skirtV = new Vector3[SkirtCols * (SkirtRows + 2)];
+            var sc = new Color[r.skirtV.Length];
+            var tri = new System.Collections.Generic.List<int>();
+            for (int k = 0; k < SkirtRows + 2; k++)
+                for (int j = 0; j < SkirtCols; j++)
+                {
+                    float tt = Mathf.Min(1, k / (float)SkirtRows);
+                    sc[k * SkirtCols + j] = k > SkirtRows ? Col.A(mantleD, 0) : k == SkirtRows ? Col.A(mantle, 0) : Col.A(Color.Lerp(robe, robeD, tt), 0);
+                    if (k > 0) { int a0 = (k - 1) * SkirtCols + j, a1 = (k - 1) * SkirtCols + (j + 1) % SkirtCols, b0 = k * SkirtCols + j, b1 = k * SkirtCols + (j + 1) % SkirtCols; tri.Add(a0); tri.Add(b0); tri.Add(a1); tri.Add(a1); tri.Add(b0); tri.Add(b1); }
+                }
+            r.skirt.vertices = r.skirtV; r.skirt.colors = sc; r.skirt.triangles = tri.ToArray();
+            r.UpdateSkirt(new float[10]);
+            Mats.Object("saia", r.skirt, Mats.LowPoly, r.pelvis);
 
             for (int s = 0; s < 2; s++)
             {
                 string side = s == 0 ? "E" : "D";
                 r.thigh[s] = Node("coxa" + side, r.pelvis, s == 0 ? HipL : HipR);
                 mb = new MeshBuilder();
-                mb.Cylinder(new Vector3(0, -Thigh, 0), Thigh + 0.02f, 0.062f, 0.088f, 7, Pants, 0, 0, 0, rng);
+                mb.Cylinder(new Vector3(0, -Thigh, 0), Thigh + 0.02f, 0.058f, 0.08f, 8, Pants, 0, 0, 0, rng);
                 Part("coxa_m", r.thigh[s], mb, Vector3.zero);
                 r.shin[s] = Node("canela" + side, r.thigh[s], new Vector3(0, -Thigh, 0));
                 mb = new MeshBuilder();
-                mb.Blob(Vector3.zero, Vector3.one * 0.066f, Pants, 0.05f, rng, 0);                               // joelho
-                mb.Cylinder(new Vector3(0, -Shin, 0), Shin, 0.05f, 0.064f, 7, Pants, 0, 0, 0, rng);
-                mb.Cylinder(new Vector3(0, -Shin, 0), 0.2f, 0.06f, 0.066f, 7, Boot, 0, 0, 0, rng);              // cano da bota
-                mb.Cylinder(new Vector3(0, -Shin + 0.19f, 0), 0.03f, 0.07f, 0.07f, 7, Color.Lerp(Boot, Color.white, 0.15f), 0, 0, 0, rng);
+                mb.Blob(Vector3.zero, Vector3.one * 0.062f, Pants, 0.03f, rng, 0);
+                mb.Cylinder(new Vector3(0, -Shin, 0), Shin, 0.048f, 0.06f, 8, Pants, 0, 0, 0, rng);
+                mb.Cylinder(new Vector3(0, -Shin, 0), 0.17f, 0.058f, 0.064f, 8, Boot, 0, 0, 0, rng);
+                mb.Cylinder(new Vector3(0, -Shin + 0.16f, 0), 0.035f, 0.07f, 0.068f, 8, Wrap, 0, 0, 0, rng);   // faixa da bota
                 Part("canela_m", r.shin[s], mb, Vector3.zero);
                 r.foot[s] = Node("pe" + side, r.shin[s], new Vector3(0, -Shin, 0));
-                mb = new MeshBuilder();
-                mb.Box(new Vector3(-0.052f, -Ankle + 0.012f, -0.065f), new Vector3(0.052f, 0.02f, 0.11f), Boot, rng);
-                mb.Box(new Vector3(-0.048f, -Ankle + 0.012f, 0.1f), new Vector3(0.048f, -0.02f, 0.17f), Boot, rng);          // biqueira
-                mb.Box(new Vector3(-0.055f, -Ankle, -0.07f), new Vector3(0.055f, -Ankle + 0.014f, 0.175f), Sole);
+                mb = new MeshBuilder { SmoothBlobs = 0.5f };
+                mb.Blob(new Vector3(0, -Ankle + 0.035f, 0.045f), new Vector3(0.055f, 0.038f, 0.11f), Boot, 0.03f, rng, 1);
+                mb.Box(new Vector3(-0.052f, -Ankle, -0.06f), new Vector3(0.052f, -Ankle + 0.012f, 0.155f), Sole);
                 Part("pe_m", r.foot[s], mb, Vector3.zero);
             }
 
-            // ---------------- tronco
+            // ---------------- tronco: túnica clara + manto curto nos ombros
             r.spine = Node("coluna", r.pelvis, new Vector3(0, 0.05f, 0));
             mb = new MeshBuilder();
-            mb.Cylinder(Vector3.zero, 0.26f, 0.155f, 0.165f, 8, cloak, 0, 0, 0, rng);
-            mb.Scale(new Vector3(1, 1, 0.78f));
-            mb.Box(new Vector3(-0.012f, 0.0f, 0.12f), new Vector3(0.012f, 0.26f, 0.135f), cloakD);                 // abotoamento
+            mb.Cylinder(Vector3.zero, 0.26f, 0.15f, 0.158f, 10, robe, 0, 0, 0, rng);
+            mb.Scale(new Vector3(1, 1, 0.8f));
+            for (int k = 0; k < mb.v.Count; k++) { var q = mb.v[k]; mb.Soften(k, new Vector3(q.x, 0, q.z / 0.64f).normalized, 0.8f); }
             Part("barriga", r.spine, mb, Vector3.zero);
 
             r.chest = Node("peito", r.spine, new Vector3(0, 0.25f, 0));
             mb = new MeshBuilder();
-            mb.Cylinder(Vector3.zero, 0.25f, 0.165f, 0.205f, 8, cloak, 0, 0, 0, rng);
-            mb.Cylinder(new Vector3(0, 0.25f, 0), 0.06f, 0.205f, 0.12f, 8, cloakL, 0, 0, 0, rng);                   // ombros
-            mb.Scale(new Vector3(1, 1, 0.72f));
-            int m0 = mb.v.Count;
-            mb.Cylinder(new Vector3(0, 0.27f, 0), 0.075f, 0.115f, 0.092f, 8, Scarf, 0, 0, 0, rng);                 // cachecol
-            mb.Blob(new Vector3(0.05f, 0.27f, 0.08f), new Vector3(0.05f, 0.045f, 0.04f), Scarf, 0.1f, rng, 0);       // nó
-            mb.Box(new Vector3(-0.13f, 0.0f, 0.115f), new Vector3(-0.09f, 0.28f, 0.135f), PackD);                   // alças da mochila
-            mb.Box(new Vector3(0.09f, 0.0f, 0.115f), new Vector3(0.13f, 0.28f, 0.135f), PackD);
-            mb.Box(new Vector3(-0.012f, 0.0f, 0.13f), new Vector3(0.012f, 0.24f, 0.145f), cloakD);
+            mb.Cylinder(Vector3.zero, 0.24f, 0.158f, 0.19f, 10, robe, 0, 0, 0, rng);
+            mb.Scale(new Vector3(1, 1, 0.74f));
+            for (int k = 0; k < mb.v.Count; k++) { var q = mb.v[k]; mb.Soften(k, new Vector3(q.x, 0.1f, q.z / 0.55f).normalized, 0.8f); }
+            int c0 = mb.v.Count;
+            // manto: gola larga e arredondada caindo sobre os ombros
+            mb.Cylinder(new Vector3(0, 0.12f, 0), 0.2f, 0.27f, 0.12f, 12, mantle, 0, 0, 0, rng);
+            mb.Cylinder(new Vector3(0, 0.08f, 0), 0.045f, 0.275f, 0.27f, 12, mantleD, 0, 0, 0, rng);
+            for (int k = c0; k < mb.v.Count; k++) { var q = mb.v[k]; mb.Soften(k, new Vector3(q.x, 0.9f, q.z).normalized, 0.85f); }
+            mb.Scale(new Vector3(1, 1, 0.85f), c0);
+            // alça do cajado atravessando o peito
+            mb.Box(new Vector3(-0.15f, 0.02f, 0.12f), new Vector3(0.15f, 0.045f, 0.145f), Col.Hex("#6a4a30"));
             Part("peito_m", r.chest, mb, Vector3.zero);
 
-            r.pack = Node("mochila", r.chest, new Vector3(0, 0.02f, -0.15f));
+            // cajado nas costas (diagonal) com cristal
+            var staff = Node("cajado", r.chest, new Vector3(0, 0.12f, -0.17f));
+            staff.localRotation = Quaternion.Euler(0, 0, 28);
             mb = new MeshBuilder();
-            mb.Box(new Vector3(-0.15f, 0, -0.13f), new Vector3(0.15f, 0.32f, 0), Pack, rng);
-            mb.Box(new Vector3(-0.155f, 0.2f, -0.135f), new Vector3(0.155f, 0.33f, 0.005f), PackD, rng);            // tampa
-            mb.Box(new Vector3(-0.11f, 0.04f, -0.17f), new Vector3(0.11f, 0.16f, -0.12f), PackD, rng);             // bolso
-            mb.Cylinder(new Vector3(-0.19f, 0.39f, -0.07f), 0.38f, 0.06f, 0.06f, 7, Roll, 0, 0, 0, rng);           // saco de dormir
-            int rollStart = mb.v.Count - 7 * 3 * 3;
-            for (int i = Mathf.Max(0, rollStart); i < mb.v.Count; i++)                                              // deita o rolo (gira 90° no eixo Z)
-            {
-                var q = mb.v[i] - new Vector3(-0.19f, 0.39f, -0.07f);
-                mb.v[i] = new Vector3(-0.19f, 0.39f, -0.07f) + new Vector3(q.y, -q.x, q.z);
-            }
-            Part("mochila_m", r.pack, mb, Vector3.zero);
+            mb.Cylinder(new Vector3(0, -0.62f, 0), 1.25f, 0.022f, 0.026f, 6, Col.Hex("#8a5a3a"), 0, 0, 0, rng);
+            mb.Cylinder(new Vector3(0, 0.6f, 0), 0.08f, 0.04f, 0.03f, 6, Col.Hex("#c89a50"), 0, 0, 0, rng);       // anel
+            Part("cajado_m", staff, mb, Vector3.zero);
+            var cm = new MeshBuilder();
+            cm.Cylinder(new Vector3(0, 0.66f, 0), 0.09f, 0.0f, 0.045f, 5, Crystal, 0, 0, 0, rng, false);
+            cm.Cylinder(new Vector3(0, 0.75f, 0), 0.11f, 0.045f, 0.0f, 5, Crystal, 0, 0, 0, rng, false);
+            r.crystalMat = new Material(Mats.Glow) { name = "cristal" };
+            var cg = Mats.Object("cristal", cm.ToMesh("cristal"), r.crystalMat, staff, false);
+            r.staffTip = cg.transform;
+            var lg = new GameObject("luz_cajado");
+            lg.transform.SetParent(staff, false); lg.transform.localPosition = new Vector3(0, 0.74f, 0);
+            r.staffLight = lg.AddComponent<Light>();
+            r.staffLight.type = LightType.Point; r.staffLight.color = Col.Hex("#8ff0ff"); r.staffLight.range = 7; r.staffLight.intensity = 0; r.staffLight.shadows = LightShadows.None;
 
-            r.scarf = Node("cachecol", r.chest, new Vector3(0.05f, 0.29f, -0.08f));
+            // ---------------- pescoço e cabeça (capuz macio com ponta que cai para trás)
+            r.neck = Node("pescoco", r.chest, new Vector3(0, 0.29f, 0));
             mb = new MeshBuilder();
-            mb.Quad(new Vector3(-0.04f, 0, 0), new Vector3(0.04f, 0, 0), new Vector3(0.045f, -0.3f, -0.03f), new Vector3(-0.035f, -0.3f, -0.03f), Scarf);
-            mb.Box(new Vector3(-0.045f, -0.32f, -0.04f), new Vector3(0.05f, -0.29f, -0.02f), Color.Lerp(Scarf, Color.black, 0.25f));
-            Part("cachecol_m", r.scarf, mb, Vector3.zero);
-
-            // ---------------- pescoço e cabeça
-            r.neck = Node("pescoco", r.chest, new Vector3(0, 0.3f, 0));
-            mb = new MeshBuilder();
-            mb.Cylinder(Vector3.zero, 0.09f, 0.052f, 0.048f, 6, Skin, 0, 0, 0, rng);
+            mb.Cylinder(Vector3.zero, 0.08f, 0.05f, 0.046f, 8, Skin, 0, 0, 0, rng);
             Part("pescoco_m", r.neck, mb, Vector3.zero);
-            r.head = Node("cabeca", r.neck, new Vector3(0, 0.08f, 0.005f));
-            mb = new MeshBuilder();
-            mb.Blob(new Vector3(0, 0.11f, 0.012f), new Vector3(0.096f, 0.122f, 0.108f), Skin, 0.03f, rng, 1);       // crânio/rosto
-            mb.Blob(new Vector3(0, 0.035f, 0.05f), new Vector3(0.07f, 0.045f, 0.06f), Skin, 0.03f, rng, 0);        // queixo
-            mb.Blob(new Vector3(0, 0.135f, -0.05f), new Vector3(0.138f, 0.152f, 0.128f), cloakD, 0.04f, rng, 1);     // capuz
-            mb.Cylinder(new Vector3(0, 0.2f, -0.14f), 0.17f, 0.06f, 0.0f, 5, cloakD, 0, 0, 0, rng);                // ponta do capuz
-            mb.Box(new Vector3(-0.072f, 0.165f, 0.07f), new Vector3(0.072f, 0.205f, 0.1f), Hair, rng);              // franja
-            mb.Box(new Vector3(-0.058f, 0.118f, 0.104f), new Vector3(-0.024f, 0.138f, 0.118f), Eye);                // olhos
-            mb.Box(new Vector3(0.024f, 0.118f, 0.104f), new Vector3(0.058f, 0.138f, 0.118f), Eye);
-            mb.Box(new Vector3(-0.062f, 0.145f, 0.1f), new Vector3(-0.02f, 0.153f, 0.114f), Hair);                 // sobrancelhas
-            mb.Box(new Vector3(0.02f, 0.145f, 0.1f), new Vector3(0.062f, 0.153f, 0.114f), Hair);
-            mb.Box(new Vector3(-0.013f, 0.075f, 0.11f), new Vector3(0.013f, 0.12f, 0.138f), SkinD);                 // nariz
-            mb.Box(new Vector3(-0.025f, 0.052f, 0.1f), new Vector3(0.025f, 0.058f, 0.112f), SkinD);                 // boca
+            r.head = Node("cabeca", r.neck, new Vector3(0, 0.07f, 0.005f));
+            mb = new MeshBuilder { SmoothBlobs = 0.85f };
+            mb.Blob(new Vector3(0, 0.1f, 0.012f), new Vector3(0.092f, 0.112f, 0.1f), Skin, 0.0f, rng, 1);           // rosto
+            mb.Blob(new Vector3(0, 0.125f, -0.04f), new Vector3(0.132f, 0.148f, 0.13f), mantle, 0.0f, rng, 1);      // capuz
+            mb.Blob(new Vector3(0, 0.05f, -0.035f), new Vector3(0.12f, 0.06f, 0.12f), mantleD, 0.0f, rng, 0);       // borda do capuz no pescoço
+            mb.SmoothBlobs = 0;
+            int h0 = mb.v.Count;
+            mb.Cylinder(new Vector3(0, 0.2f, -0.12f), 0.24f, 0.07f, 0.0f, 7, mantle, 0, 0, 0, rng);                // ponta do capuz
+            for (int k = h0; k < mb.v.Count; k++) { var q = mb.v[k] - new Vector3(0, 0.2f, -0.12f); mb.Soften(k, new Vector3(q.x, 0.4f, q.z).normalized, 0.8f); }
+            for (int k = h0; k < mb.v.Count; k++)                                                                  // ponta curvada para trás
+            {
+                var q = mb.v[k]; float up = Mathf.Max(0, q.y - 0.2f);
+                mb.v[k] = new Vector3(q.x, 0.2f + up * 0.75f, q.z - up * up * 2.4f);
+            }
+            mb.Box(new Vector3(-0.05f, 0.105f, 0.1f), new Vector3(-0.022f, 0.13f, 0.112f), Eye);                  // olhos
+            mb.Box(new Vector3(0.022f, 0.105f, 0.1f), new Vector3(0.05f, 0.13f, 0.112f), Eye);
+            mb.Box(new Vector3(-0.011f, 0.07f, 0.104f), new Vector3(0.011f, 0.1f, 0.122f), SkinD);                 // nariz
+            mb.Blob(new Vector3(-0.055f, 0.08f, 0.085f), new Vector3(0.02f, 0.012f, 0.01f), Blush, 0, rng, 0);    // bochechas
+            mb.Blob(new Vector3(0.055f, 0.08f, 0.085f), new Vector3(0.02f, 0.012f, 0.01f), Blush, 0, rng, 0);
             Part("cabeca_m", r.head, mb, Vector3.zero);
 
-            // ---------------- braços
+            // ---------------- braços com mangas largas
             for (int s = 0; s < 2; s++)
             {
                 float sx = s == 0 ? -1 : 1;
                 string side = s == 0 ? "E" : "D";
-                r.upper[s] = Node("braco" + side, r.chest, new Vector3(sx * 0.2f, 0.225f, 0));
-                mb = new MeshBuilder();
-                mb.Blob(Vector3.zero, new Vector3(0.07f, 0.065f, 0.07f), cloakL, 0.05f, rng, 0);                    // ombro
-                mb.Cylinder(new Vector3(0, -0.29f, 0), 0.29f, 0.05f, 0.064f, 7, cloak, 0, 0, 0, rng);
+                r.upper[s] = Node("braco" + side, r.chest, new Vector3(sx * 0.19f, 0.215f, 0));
+                mb = new MeshBuilder { SmoothBlobs = 0.7f };
+                mb.Blob(Vector3.zero, new Vector3(0.075f, 0.07f, 0.075f), mantle, 0.03f, rng, 0);
+                mb.SmoothBlobs = 0;
+                mb.Cylinder(new Vector3(0, -0.28f, 0), 0.28f, 0.055f, 0.062f, 8, robe, 0, 0, 0, rng);
                 Part("braco_m", r.upper[s], mb, Vector3.zero);
-                r.fore[s] = Node("antebraco" + side, r.upper[s], new Vector3(0, -0.29f, 0));
+                r.fore[s] = Node("antebraco" + side, r.upper[s], new Vector3(0, -0.28f, 0));
                 mb = new MeshBuilder();
-                mb.Blob(Vector3.zero, Vector3.one * 0.052f, cloak, 0.05f, rng, 0);                                   // cotovelo
-                mb.Cylinder(new Vector3(0, -0.25f, 0), 0.25f, 0.042f, 0.05f, 7, cloak, 0, 0, 0, rng);
-                mb.Cylinder(new Vector3(0, -0.25f, 0), 0.035f, 0.05f, 0.05f, 7, cloakD, 0, 0, 0, rng);              // punho
+                mb.Blob(Vector3.zero, Vector3.one * 0.056f, robe, 0.03f, rng, 0);
+                mb.Cylinder(new Vector3(0, -0.24f, 0), 0.24f, 0.075f, 0.055f, 8, robe, 0, 0, 0, rng);              // manga abre no punho
+                mb.Cylinder(new Vector3(0, -0.245f, 0), 0.03f, 0.079f, 0.077f, 8, mantle, 0, 0, 0, rng);
                 Part("antebraco_m", r.fore[s], mb, Vector3.zero);
                 r.hand[s] = Node("mao" + side, r.fore[s], new Vector3(0, -0.25f, 0));
-                mb = new MeshBuilder();
-                mb.Blob(new Vector3(0, -0.05f, 0.008f), new Vector3(0.042f, 0.058f, 0.03f), Skin, 0.06f, rng, 0);
-                mb.Blob(new Vector3(sx * -0.03f, -0.035f, 0.025f), new Vector3(0.018f, 0.03f, 0.018f), Skin, 0.05f, rng, 0);   // polegar
+                mb = new MeshBuilder { SmoothBlobs = 0.7f };
+                mb.Blob(new Vector3(0, -0.045f, 0.008f), new Vector3(0.04f, 0.055f, 0.03f), Skin, 0.03f, rng, 0);
+                mb.Blob(new Vector3(sx * -0.03f, -0.032f, 0.025f), new Vector3(0.017f, 0.028f, 0.017f), Skin, 0.03f, rng, 0);
                 Part("mao_m", r.hand[s], mb, Vector3.zero);
             }
+
+            // ponto onde o cachecol de pano (simulado) se prende: atrás do pescoço
+            r.scarf = Node("cachecol", r.chest, new Vector3(0.04f, 0.3f, -0.09f));
+            mb = new MeshBuilder { SmoothBlobs = 0.7f };
+            mb.Blob(new Vector3(-0.04f, -0.01f, 0.07f), new Vector3(0.12f, 0.05f, 0.11f), Sash, 0.03f, rng, 1);    // volta no pescoço
+            Part("cachecol_m", r.scarf, mb, Vector3.zero);
 
             r.tool = Mats.Object("ferramenta", Rig.ToolMesh(0), Mats.LowPoly, r.hand[1]).transform;
             r.tool.localPosition = new Vector3(0, -0.06f, 0.01f);
             r.tool.localRotation = Quaternion.Euler(80, 0, 0);
+            r.ribbon = new ClothRibbon(r, Sash, Color.Lerp(Sash, Col.Hex("#ffd0a0"), 0.5f));
             r.renderers = r.root.GetComponentsInChildren<Renderer>(true);
             var fp = new System.Collections.Generic.List<Renderer>();
             fp.AddRange(r.fore[0].GetComponentsInChildren<Renderer>(true));
@@ -201,7 +267,10 @@ namespace Floresta
         public Action<Vector3, float> OnLand;
 
         float phase, time, runW, airW, prevYaw, turnRate, glanceT, glanceYaw;
-        Spring moveS, runS, pelvisY, land, lean, bank, headYaw, headPitch, tailS, tailSide, packS, scarfS, airS, actS;
+        Spring moveS, runS, pelvisY, land, lean, bank, headYaw, headPitch, packS, packSide, airS, actS;
+        readonly Spring[] robeS = new Spring[10];
+        readonly float[] thighAngle = new float[2];
+        readonly float[] flares = new float[10];
         Vector3 prevVel, accel;
         bool wasGrounded = true;
         readonly bool[] stance = { true, true };
@@ -456,15 +525,25 @@ namespace Floresta
             r.hand[0].localRotation = Quaternion.Euler(-8, 0, 0);
             r.hand[1].localRotation = Quaternion.Euler(-8, 0, hRz);
 
-            // ---------------- peças soltas com mola
+            // ---------------- túnica: cada painel abre com a perna que passa por ele, com a velocidade (vento relativo) e ao cair
             var velL = root.InverseTransformDirection(vel);
-            float tailT = Mathf.Clamp(-velL.z * 5f - accLocal.z * 1.0f + vel.y * -4f, -50, 8) + Mathf.Sin(time * 9 + phase * 6.28f) * 4 * moveW;
-            float tailX = tailS.Step(-tailT, 2.2f, 0.35f, dt);
-            r.tail.localRotation = Quaternion.Euler(tailX, 0, tailSide.Step(-velL.x * 6 - bk, 2f, 0.4f, dt));
+            var windL = root.InverseTransformDirection(Wind.At(root.position));
+            float thL = -thighAngle[0], thR = -thighAngle[1];       // + = perna para frente
+            for (int i = 0; i < 10; i++)
+            {
+                var d = r.robeDir[i];
+                float leg = d.x < 0 ? thL : thR;
+                float sideW = Mathf.Clamp01(Mathf.Abs(d.x) * 1.2f + 0.2f);
+                float push = d.z > 0 ? Mathf.Max(0, leg - 12) * d.z : Mathf.Max(0, -leg) * -d.z;                  // perna empurra (descontando o joelho dobrado em pé)
+                float rel = -(velL.x * d.x + velL.z * d.z) + (windL.x * d.x + windL.z * d.z) * 0.5f;           // "vento" da corrida
+                float flare = 3f + push * 0.55f * sideW + Mathf.Clamp(rel * 4f, -6, 24) + Mathf.Clamp(-vel.y * 5f, -4, 35)
+                            + Ease.Noise(time * 2.2f + i * 1.7f, i) * 2f * (0.3f + Wind.Strength * 0.4f);
+                flares[i] = robeS[i].Step(flare, 3.2f, 0.5f, dt);
+            }
+            r.UpdateSkirt(flares);
             float packT = bob * 120f + landDip * 60f + accLocal.z * -0.8f;
-            r.pack.localRotation = Quaternion.Euler(packS.Step(packT, 3f, 0.3f, dt), 0, 0);
-            float scarfT = Mathf.Clamp(-velL.z * 9f + vel.y * -5f, -80, 5) + Ease.Noise(time * 1.3f, 2) * 8f;
-            r.scarf.localRotation = Quaternion.Euler(scarfS.Step(-scarfT, 2.6f, 0.3f, dt), 0, Ease.Noise(time * 2f, 5) * 10f);
+            r.pack.localRotation = Quaternion.Euler(packS.Step(packT, 3f, 0.3f, dt), 0, packSide.Step(-velL.x * 4 + bk * 0.5f, 2.5f, 0.35f, dt));
+            r.ribbon?.Step(dt, vel);
         }
 
         /// <summary>Ponta do pé: sobe no começo do balanço e empurra o chão no fim do apoio.</summary>
@@ -488,6 +567,7 @@ namespace Floresta
             float knee = Mathf.PI - Mathf.Acos(Mathf.Clamp((L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2), -1, 1));
             float thighX = -(a + b) * Mathf.Rad2Deg, shinX = knee * Mathf.Rad2Deg;
             r.thigh[i].localRotation = Quaternion.Euler(thighX, 0, roll);
+            thighAngle[i] = thighX;
             r.shin[i].localRotation = Quaternion.Euler(shinX, 0, 0);
             r.foot[i].localRotation = Quaternion.Euler(-(thighX + shinX) + footPitchDeg, 0, -roll);
         }

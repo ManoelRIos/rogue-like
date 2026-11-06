@@ -218,7 +218,7 @@ namespace Floresta
 
     public static class Mats
     {
-        public static Material LowPoly, Grass, Water, Sky, Glow, Soft, SoftAdd, SoftUnlit, Fire;
+        public static Material LowPoly, Grass, Water, Sky, Glow, Soft, SoftAdd, SoftUnlit, Fire, Ribbon;
         public static void Init()
         {
             if (LowPoly != null) return;
@@ -240,6 +240,7 @@ namespace Floresta
             SoftUnlit.SetFloat("_Lit", 0);
             SoftUnlit.SetFloat("_UseFog", 0);
             Fire = new Material(Resources.Load<Shader>("Shaders/Fire")) { name = "Fogo" };
+            Ribbon = new Material(Resources.Load<Shader>("Shaders/Ribbon")) { name = "Fitas" };
         }
 
         public static GameObject Object(string name, Mesh mesh, Material mat, Transform parent = null, bool shadows = true)
