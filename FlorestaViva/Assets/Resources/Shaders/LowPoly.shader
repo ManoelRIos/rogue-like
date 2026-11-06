@@ -17,9 +17,10 @@ Shader "Floresta/LowPoly"
         Tags { "RenderType"="Opaque" }
         Cull Off
         CGPROGRAM
-        #pragma surface surf Foliage vertex:vert addshadow fullforwardshadows
+        #pragma surface surf Omno vertex:vert addshadow fullforwardshadows finalcolor:OmnoFinal nofog
         #pragma target 3.0
         #pragma multi_compile_instancing
+        #include "Floresta.cginc"
 
         fixed4 _Color;
         fixed4 _Emission;
@@ -28,8 +29,9 @@ Shader "Floresta/LowPoly"
         float4 _FlorestaWindDir;     // xy direção, z força
         float _FlorestaTime;
         float4 _FlorestaPushers[4];  // xyz posição, w raio
+        float4 _FlorestaRim;         // luz de contorno (cor do céu)
 
-        struct Input { float4 color : COLOR; };
+        struct Input { float4 color : COLOR; float3 worldPos; };
 
         float Gust(float2 p, float2 dir, float t)
         {
@@ -79,17 +81,33 @@ Shader "Floresta/LowPoly"
             }
         }
 
-        // Lambert para o que é sólido; folhas/grama finas deixam a luz "atravessar" (sem lado escuro)
-        half4 LightingFoliage (SurfaceOutput s, half3 lightDir, half atten)
+        // Luz estilo "pintado" (Omno): passagem suave da sombra para a luz numa faixa curta,
+        // folhas finas deixam a luz atravessar (brilham contra o sol), contorno claro com a cor do céu.
+        half4 LightingOmno (SurfaceOutput s, half3 lightDir, half3 viewDir, half atten)
         {
             half ndl = dot(s.Normal, lightDir);
-            half solid = saturate(ndl);
-            half leaf = saturate(abs(ndl) * 0.65 + 0.35);
-            half diff = lerp(solid, leaf, s.Gloss);
-            half4 c;
-            c.rgb = s.Albedo * _LightColor0.rgb * diff * atten;
-            c.a = s.Alpha;
-            return c;
+            half w = ndl * 0.5 + 0.5;
+            half ramp = smoothstep(0.3, 0.8, w);
+            half leaf = saturate(abs(ndl) * 0.55 + 0.45);
+            half diff = lerp(ramp, leaf, s.Gloss * 0.7);
+            half trans = pow(saturate(dot(viewDir, -lightDir)), 5) * s.Gloss * 0.9;
+            half3 c = s.Albedo * _LightColor0.rgb * (diff * atten + trans * (0.35 + 0.65 * atten));
+        #ifdef UNITY_PASS_FORWARDBASE
+            half rim = pow(1 - saturate(dot(s.Normal, viewDir)), 4);
+            c += _FlorestaRim.rgb * rim * (0.22 + 0.4 * s.Gloss);
+        #endif
+            return half4(c, s.Alpha);
+        }
+
+        void OmnoFinal (Input IN, SurfaceOutput o, inout fixed4 color)
+        {
+            float3 fc;
+            float f = OmnoFogAmount(IN.worldPos, fc);
+        #ifdef UNITY_PASS_FORWARDADD
+            color.rgb *= 1 - f;          // luzes extras (fogueira) somem na névoa
+        #else
+            color.rgb = lerp(color.rgb, fc, f);
+        #endif
         }
 
         void surf (Input IN, inout SurfaceOutput o)

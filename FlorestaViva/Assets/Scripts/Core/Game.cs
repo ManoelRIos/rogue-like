@@ -55,7 +55,7 @@ namespace Floresta
             Fire = new Campfire(World, World.Root);
             Fx.Init(World);
             Life = new Life(Flora, World, World.Root);
-            Cycle = new DayNight();
+            Cycle = new DayNight { Post = Rig.Post };
             Farm = new Farm(World, Fire, World.Root);
             Director = new NightDirector(World, Flora, Fire) { farm = Farm };
             Cycle.OnNight += () =>
@@ -88,7 +88,7 @@ namespace Floresta
         Vector3 SpawnPoint(int index)
         {
             var p = Fire.Pos + Quaternion.Euler(0, 200 + index * 40, 0) * Vector3.forward * 4.5f;
-            p.y = World.Height(p.x, p.z) + 0.2f;
+            p.y = World.Ground(p.x, p.z) + 0.2f;
             return p;
         }
 

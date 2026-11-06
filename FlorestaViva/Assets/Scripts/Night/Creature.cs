@@ -174,7 +174,7 @@ namespace Floresta
             var face = Eating && raid != null ? Flat(raid.pos - pos) : state == State.Stalk && target != null ? Flat(target.transform.position - pos) : dir;
             if (face.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(face.normalized), dt * 6);
-            pos.y = Mathf.Max(world.Height(pos.x, pos.z), World.WaterLevel - 0.2f) + Mathf.Sin(phase * 0.3f) * 0.05f;
+            pos.y = Mathf.Max(world.Ground(pos.x, pos.z), World.WaterLevel - 0.2f) + Mathf.Sin(phase * 0.3f) * 0.05f;
             transform.position = pos;
 
             float swing = state == State.Attack ? Mathf.Clamp01(1 - stateT / 0.6f) : Eating ? Mathf.Abs(Mathf.Sin(phase * 0.8f)) * 0.6f : 0;

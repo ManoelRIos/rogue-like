@@ -100,9 +100,9 @@ namespace Floresta
                     var p = players[0].transform.position;
                     float a = Random.value * Mathf.PI * 2, r = Random.Range(22f, 34f);
                     var at = p + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * r;
-                    if (!world.InBase(at) && world.Height(at.x, at.z) > World.WaterLevel)
+                    if (!world.InBase(at) && world.Ground(at.x, at.z) > World.WaterLevel)
                     {
-                        at.y = world.Height(at.x, at.z) + Random.Range(0.6f, 2.2f);
+                        at.y = world.Ground(at.x, at.z) + Random.Range(0.6f, 2.2f);
                         var go = Mats.Object("olhos", eyeMesh, Mats.Glow, null, false);
                         go.transform.position = at;
                         go.transform.rotation = Quaternion.LookRotation((p - at).normalized);

@@ -136,7 +136,7 @@ namespace Floresta
         public Vector3 CellPos(Vector2Int c)
         {
             float x = World.BaseCenter.x + c.x * CellSize, z = World.BaseCenter.z + c.y * CellSize;
-            return new Vector3(x, world.Height(x, z), z);
+            return new Vector3(x, world.Ground(x, z), z);
         }
 
         public Plot At(Vector2Int c) => plots.TryGetValue(c, out var p) ? p : null;

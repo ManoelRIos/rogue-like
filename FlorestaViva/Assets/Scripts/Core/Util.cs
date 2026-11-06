@@ -57,6 +57,10 @@ namespace Floresta
         public readonly List<Vector3> v = new();
         public readonly List<Color> c = new();
         public readonly List<int> t = new();
+        // normal "arredondada" por vértice (xyz) e quanto ela pesa sobre a normal da faceta (w)
+        public readonly List<Vector4> soft = new();
+        /// <summary>0..1: quanto as bolhas (copas, arbustos) ficam com sombreado suave em vez de facetado.</summary>
+        public float SmoothBlobs = 0;
 
         public void Tri(Vector3 a, Vector3 b, Vector3 d, Color ca, Color cb, Color cd)
         {
@@ -64,7 +68,11 @@ namespace Floresta
             v.Add(a); v.Add(b); v.Add(d);
             c.Add(ca); c.Add(cb); c.Add(cd);
             t.Add(i); t.Add(i + 1); t.Add(i + 2);
+            soft.Add(Vector4.zero); soft.Add(Vector4.zero); soft.Add(Vector4.zero);
         }
+
+        /// <summary>Define a normal suave de um vértice já adicionado.</summary>
+        public void Soften(int index, Vector3 normal, float amount) => soft[index] = new Vector4(normal.x, normal.y, normal.z, amount);
 
         public void Tri(Vector3 a, Vector3 b, Vector3 d, Color col) => Tri(a, b, d, col, col, col);
 
@@ -130,6 +138,13 @@ namespace Floresta
                 var cc = rng.Vary(Color.Lerp(col, top, Mathf.Clamp01(up * 0.5f + 0.5f)), 0.03f);
                 float sw = Mathf.Lerp(sway, swayTop, Mathf.Clamp01(up * 0.5f + 0.5f));
                 Tri(a, e, b, Col.A(cc, sw), Col.A(cc, sw), Col.A(cc, sw));
+                if (SmoothBlobs > 0)
+                {
+                    int k = v.Count - 3;
+                    // normal de elipsoide: (p - centro) / raio²
+                    Vector3 N(Vector3 q) => new Vector3((q.x - center.x) / (radius.x * radius.x), (q.y - center.y) / (radius.y * radius.y), (q.z - center.z) / (radius.z * radius.z)).normalized;
+                    Soften(k, N(a), SmoothBlobs); Soften(k + 1, N(e), SmoothBlobs); Soften(k + 2, N(b), SmoothBlobs);
+                }
             }
         }
 
@@ -156,11 +171,31 @@ namespace Floresta
             return this;
         }
 
+        /// <summary>Copia triângulos de outro builder girados/deslocados.</summary>
+        public void Add(MeshBuilder src, Vector3 offset, Quaternion rot)
+        {
+            for (int i = 0; i < src.v.Count; i += 3)
+            {
+                int k = v.Count;
+                Tri(offset + rot * src.v[i], offset + rot * src.v[i + 1], offset + rot * src.v[i + 2], src.c[i], src.c[i + 1], src.c[i + 2]);
+                for (int j = 0; j < 3; j++) if (src.soft[i + j].w > 0) { var n = rot * (Vector3)src.soft[i + j]; Soften(k + j, n, src.soft[i + j].w); }
+            }
+        }
+
         public Mesh ToMesh(string name)
         {
             var m = new Mesh { name = name, indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             m.SetVertices(v); m.SetColors(c); m.SetTriangles(t, 0);
             m.RecalculateNormals(); m.RecalculateBounds();
+            bool any = false;
+            foreach (var s in soft) if (s.w > 0) { any = true; break; }
+            if (any)
+            {
+                var ns = m.normals;
+                for (int i = 0; i < ns.Length && i < soft.Count; i++)
+                    if (soft[i].w > 0) ns[i] = Vector3.Lerp(ns[i], new Vector3(soft[i].x, soft[i].y, soft[i].z), soft[i].w).normalized;
+                m.normals = ns;
+            }
             return m;
         }
     }

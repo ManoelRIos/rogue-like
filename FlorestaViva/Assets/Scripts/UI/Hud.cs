@@ -116,7 +116,7 @@ namespace Floresta
             }
 
             // vinheta: escurece as bordas à noite e fica vermelha ao levar dano / com perigo
-            float vig = 0.35f + dn.Darkness * 0.45f + game.Director.Danger * 0.2f;
+            float vig = 0.08f + dn.Darkness * 0.4f + game.Director.Danger * 0.25f;   // a vinheta suave do dia vem do pós-processamento
             var o = GUI.color;
             GUI.color = new Color(1, 1, 1, Mathf.Clamp01(vig)); GUI.DrawTexture(new Rect(0, 0, W, H), vignette);
             if (p.HurtFlash > 0) { GUI.color = new Color(0.8f, 0, 0, p.HurtFlash * 0.8f); GUI.DrawTexture(new Rect(0, 0, W, H), vignette); }

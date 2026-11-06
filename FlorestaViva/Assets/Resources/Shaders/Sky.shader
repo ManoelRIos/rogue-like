@@ -21,7 +21,7 @@ Shader "Floresta/Sky"
             #include "UnityCG.cginc"
             fixed4 _Top, _Horizon;
             float _Stars;
-            float4 _FlorestaSunDir, _FlorestaSunColor;
+            float4 _FlorestaSunDir, _FlorestaSunColor, _FogSun;
             struct v2f { float4 pos : SV_POSITION; float3 dir : TEXCOORD0; };
             v2f vert (appdata_base v)
             {
@@ -33,8 +33,11 @@ Shader "Floresta/Sky"
             float hash(float3 p) { return frac(sin(dot(p, float3(12.9898, 78.233, 37.719))) * 43758.5453); }
             fixed4 frag (v2f i) : SV_Target
             {
-                float h = saturate(i.dir.y * 1.4 + 0.1);
-                float3 c = lerp(_Horizon.rgb, _Top.rgb, pow(h, 0.7));
+                float h = saturate(i.dir.y * 1.25 + 0.02);
+                float3 c = lerp(_Horizon.rgb, _Top.rgb, smoothstep(0.0, 1.0, pow(h, 0.55)));
+                // brilho grande e suave em volta do sol perto do horizonte (céu "Omno")
+                float sdir = saturate(dot(normalize(i.dir), normalize(_FlorestaSunDir.xyz)));
+                c = lerp(c, _FogSun.rgb, pow(sdir, 6) * 0.55 * (1 - h * 0.6));
                 float3 cell = floor(i.dir * 180);
                 float s = step(0.9965, hash(cell)) * saturate(i.dir.y * 3);
                 c += s * _Stars * (0.6 + 0.4 * hash(cell + 7));

@@ -37,7 +37,7 @@ namespace Floresta
         static float dropT;
         static Kind[] all;
 
-        public const int LeafPine = 0, LeafOak = 1, LeafAutumn = 2, LeafBirch = 3, LeafBush = 4;
+        public const int LeafPine = 0, LeafOak = 1, LeafAutumn = 2, LeafBirch = 3, LeafBush = 4, LeafPink = 5;
 
         public static void Init(World w)
         {
@@ -66,7 +66,7 @@ namespace Floresta
             }
             chips = new Kind(new[] { Box(Col.Hex("#c8a070"), 0.035f, 0.012f, 0.05f), Box(Col.Hex("#8a5c38"), 0.03f, 0.015f, 0.04f), Box(Col.Hex("#e0c090"), 0.025f, 0.01f, 0.045f) }, Mats.LowPoly, false) { fadeAlpha = false };
             stones = new Kind(new[] { Box(Col.Hex("#8a8578"), 0.04f, 0.03f, 0.035f), Box(Col.Hex("#a8a294"), 0.03f, 0.025f, 0.03f) }, Mats.LowPoly, false) { fadeAlpha = false };
-            leaves = new Kind(new[] { Leaf(Col.Hex("#3f6e3a")), Leaf(Col.Hex("#6a9a38")), Leaf(Col.Hex("#d88a34")), Leaf(Col.Hex("#b8d050")), Leaf(Col.Hex("#4e8a34")) }, Mats.LowPoly, false) { fadeAlpha = false };
+            leaves = new Kind(new[] { Leaf(Col.Hex("#3f6e3a")), Leaf(Col.Hex("#6a9a38")), Leaf(Col.Hex("#d88a34")), Leaf(Col.Hex("#b8d050")), Leaf(Col.Hex("#4e8a34")), Leaf(Col.Hex("#f4a8cc")) }, Mats.LowPoly, false) { fadeAlpha = false };
             berries = new Kind(new[] { Box(Col.Hex("#c22a3c"), 0.03f, 0.03f, 0.03f) }, Mats.LowPoly, false) { fadeAlpha = false };
             dust = new Kind(new[] { Puff(0) }, Mats.Soft, true);
             smoke = new Kind(new[] { Puff(1) }, Mats.Soft, true);
@@ -75,7 +75,7 @@ namespace Floresta
             all = new[] { chips, stones, leaves, berries, dust, smoke, sparks, drops };
         }
 
-        static float Ground(Vector3 p) => World != null ? Mathf.Max(World.Height(p.x, p.z), World.WaterLevel - 0.05f) : -999;
+        static float Ground(Vector3 p) => World != null ? Mathf.Max(World.Ground(p.x, p.z), World.WaterLevel - 0.05f) : -999;
 
         static void Add(Kind k, int variant, P p)
         {

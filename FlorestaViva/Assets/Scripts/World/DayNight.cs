@@ -22,18 +22,21 @@ namespace Floresta
         readonly Material skyMat;
 
         // cores ao longo do dia (chaves: 0 meia-noite ... 1)
+        // paleta "Omno": céus pastel e luminosos, horizonte com névoa quente, noites azul-arroxeadas (escuras, mas com cor)
+        // top = alto do céu, hor = horizonte/névoa distante, sun = cor do sol, amb = luz ambiente vinda do céu, fog = névoa perto
         static readonly (float t, Color top, Color hor, Color sun, Color amb, Color fog)[] Keys =
         {
-            (0.00f, Col.Hex("#04050c"), Col.Hex("#0b0d18"), Col.Hex("#000000"), Col.Hex("#10141f"), Col.Hex("#06070d")),
-            (0.20f, Col.Hex("#0a0d1e"), Col.Hex("#1a1626"), Col.Hex("#000000"), Col.Hex("#141826"), Col.Hex("#0e0d16")),
-            (0.27f, Col.Hex("#3a4f7a"), Col.Hex("#e08a5a"), Col.Hex("#ffb070"), Col.Hex("#6a5a5a"), Col.Hex("#c08a72")),
-            (0.35f, Col.Hex("#4f86c6"), Col.Hex("#cfe0e8"), Col.Hex("#fff0d0"), Col.Hex("#8a96a0"), Col.Hex("#b8cfd8")),
-            (0.50f, Col.Hex("#3f7fd0"), Col.Hex("#d8ecf2"), Col.Hex("#fff8e8"), Col.Hex("#9aa6ae"), Col.Hex("#c4dae2")),
-            (0.66f, Col.Hex("#4a78b8"), Col.Hex("#f0c890"), Col.Hex("#ffd8a0"), Col.Hex("#8a8678"), Col.Hex("#d0b48e")),
-            (0.73f, Col.Hex("#2a2a5a"), Col.Hex("#c0503a"), Col.Hex("#ff7040"), Col.Hex("#4a3a44"), Col.Hex("#6a3a36")),
-            (0.80f, Col.Hex("#0a0c1c"), Col.Hex("#1c1424"), Col.Hex("#000000"), Col.Hex("#141826"), Col.Hex("#0d0b14")),
-            (1.00f, Col.Hex("#04050c"), Col.Hex("#0b0d18"), Col.Hex("#000000"), Col.Hex("#10141f"), Col.Hex("#06070d")),
+            (0.00f, Col.Hex("#090d28"), Col.Hex("#1a1e46"), Col.Hex("#000000"), Col.Hex("#1c2350"), Col.Hex("#121734")),
+            (0.20f, Col.Hex("#121844"), Col.Hex("#362e62"), Col.Hex("#000000"), Col.Hex("#232a56"), Col.Hex("#231f48")),
+            (0.27f, Col.Hex("#5a74c8"), Col.Hex("#ffb08a"), Col.Hex("#ffb27a"), Col.Hex("#8a7cae"), Col.Hex("#f0b4a4")),
+            (0.35f, Col.Hex("#58a6ea"), Col.Hex("#d4ecf4"), Col.Hex("#fff0d8"), Col.Hex("#9ab8d4"), Col.Hex("#cde6f0")),
+            (0.50f, Col.Hex("#479ef0"), Col.Hex("#dcf2f6"), Col.Hex("#fff6e6"), Col.Hex("#a8c6dc"), Col.Hex("#d2eaf2")),
+            (0.66f, Col.Hex("#5894e2"), Col.Hex("#ffe0b4"), Col.Hex("#ffd6a4"), Col.Hex("#b4aec4"), Col.Hex("#f6dcc4")),
+            (0.73f, Col.Hex("#5856bc"), Col.Hex("#ff9a7c"), Col.Hex("#ff8858"), Col.Hex("#94709c"), Col.Hex("#e88e80")),
+            (0.80f, Col.Hex("#181a4a"), Col.Hex("#4a2c62"), Col.Hex("#000000"), Col.Hex("#2a2a5a"), Col.Hex("#261f4a")),
+            (1.00f, Col.Hex("#090d28"), Col.Hex("#1a1e46"), Col.Hex("#000000"), Col.Hex("#1c2350"), Col.Hex("#121734")),
         };
+        public OmnoPost Post;
 
         public DayNight()
         {
@@ -41,7 +44,7 @@ namespace Floresta
             sun = s.AddComponent<Light>();
             sun.type = LightType.Directional;
             sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.8f;
+            sun.shadowStrength = 0.62f;     // sombras claras e coloridas pelo ambiente (estilo Omno)
             var m = new GameObject("Lua");
             moon = m.AddComponent<Light>();
             moon.type = LightType.Directional;
@@ -58,9 +61,8 @@ namespace Floresta
             go.transform.localScale = Vector3.one * 760;   // raio 380 m: dentro do plano distante da câmera (420 m)
             sky = go.transform;
 
-            RenderSettings.fog = true;
-            RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.fog = false;          // a neblina é feita nos shaders (por altura, com brilho do sol)
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
             QualitySettings.shadowDistance = 70;
             IsNight = Phase(time) == 1;
         }
@@ -93,22 +95,33 @@ namespace Floresta
 
             sun.transform.rotation = Quaternion.Euler((time - 0.25f) * 360f, 35f, 0);
             sun.color = C(time, k => k.sun);
-            sun.intensity = Mathf.Clamp01(sunH * 2.5f + 0.1f) * 1.15f;
+            sun.intensity = Mathf.Clamp01(sunH * 2.5f + 0.1f) * 1.25f;
             sun.enabled = sun.intensity > 0.01f;
             moon.transform.rotation = Quaternion.Euler((time + 0.25f) * 360f, 200f, 0);
             moon.intensity = Darkness * 0.22f;
             moon.enabled = moon.intensity > 0.01f;
 
-            RenderSettings.ambientLight = C(time, k => k.amb);
+            // luz ambiente em 3 cores: do céu (azulada), do horizonte e do chão (quente) → sombras coloridas
+            var amb = C(time, k => k.amb);
             var fog = C(time, k => k.fog);
-            RenderSettings.fogColor = fog;
-            // neblina leve de dia, muito densa à noite (terror)
-            RenderSettings.fogDensity = Mathf.Lerp(0.0055f, 0.045f, Darkness);
+            var hor = C(time, k => k.hor);
+            RenderSettings.ambientSkyColor = amb;
+            RenderSettings.ambientEquatorColor = Color.Lerp(amb, fog, 0.45f);
+            RenderSettings.ambientGroundColor = new Color(amb.r * 0.62f, amb.g * 0.56f, amb.b * 0.46f);
+            RenderSettings.ambientLight = amb;
+            // neblina leve de dia (perspectiva aérea), muito densa à noite (terror)
+            float sunset = Mathf.Max(Mathf.Clamp01(1 - Mathf.Abs(time - 0.74f) / 0.06f), Mathf.Clamp01(1 - Mathf.Abs(time - 0.26f) / 0.06f));
+            Shader.SetGlobalColor("_FogNear", fog);
+            Shader.SetGlobalColor("_FogFar", hor);
+            Shader.SetGlobalColor("_FogSun", Color.Lerp(hor, C(time, k => k.sun), 0.6f) * (1 + sunset * 0.25f));
+            Shader.SetGlobalVector("_FogParams", new Vector4(Mathf.Lerp(0.0042f, 0.05f, Darkness), Mathf.Lerp(0.035f, 0.02f, Darkness), 0f, Mathf.Lerp(0.85f, 0.2f, Darkness)));
+            Shader.SetGlobalColor("_FlorestaRim", Color.Lerp(C(time, k => k.top), Color.white, 0.35f) * Mathf.Lerp(0.55f, 0.12f, Darkness));
             skyMat.SetColor("_Top", C(time, k => k.top));
-            skyMat.SetColor("_Horizon", Color.Lerp(C(time, k => k.hor), fog, Darkness * 0.6f));
+            skyMat.SetColor("_Horizon", hor);
             skyMat.SetFloat("_Stars", Darkness);
             sky.position = cameraPos;
-            if (Camera.main) Camera.main.backgroundColor = fog;
+            if (Camera.main) Camera.main.backgroundColor = hor;
+            if (Post) Post.SetMood(Darkness, sunset);
 
             // luz principal para água, fumaça e névoa (o sol de dia, a lua à noite)
             bool useSun = sun.intensity >= moon.intensity;

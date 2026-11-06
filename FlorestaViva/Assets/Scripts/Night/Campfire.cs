@@ -29,7 +29,7 @@ namespace Floresta
 
         public Campfire(World w, Transform parent)
         {
-            Pos = World.BaseCenter; Pos.y = w.Height(Pos.x, Pos.z);
+            Pos = World.BaseCenter; Pos.y = w.Ground(Pos.x, Pos.z);
             var rng = new Rng(77);
             var root = new GameObject("Base").transform; root.SetParent(parent, false);
 
@@ -147,7 +147,7 @@ namespace Floresta
             GameObject Put(string n, MeshBuilder m, Vector3 p, float yaw, bool solid, float r = 0.6f)
             {
                 var go = Mats.Object(n, m.ToMesh(n), Mats.LowPoly, root);
-                p.y = w.Height(p.x, p.z);
+                p.y = w.Ground(p.x, p.z);
                 go.transform.position = p; go.transform.rotation = Quaternion.Euler(0, yaw, 0);
                 if (solid) { var c = go.AddComponent<SphereCollider>(); c.radius = r; c.center = Vector3.up * r * 0.6f; }
                 return go;

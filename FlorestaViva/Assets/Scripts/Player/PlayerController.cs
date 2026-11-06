@@ -29,7 +29,7 @@ namespace Floresta
         public float swing;               // 0..1 animação do golpe
         public bool FirstPerson;          // esconde o próprio corpo na 1ª pessoa
         Vector3 vel;
-        float swingCd, hurtT, deadT, swingDur = 0.6f;
+        float swingCd, hurtT, deadT, swingDur = 0.6f, groundedT;
         public Vector3 Velocity => vel;
         public float HurtFlash => Mathf.Clamp01(hurtT);
         public Gatherable Target { get; private set; }
@@ -83,7 +83,8 @@ namespace Floresta
             var right = Quaternion.Euler(0, inp.yaw, 0) * Vector3.right;
             var dir = (fwd * inp.move.y + right * inp.move.x);
             if (dir.sqrMagnitude > 1) dir.Normalize();
-            bool grounded = cc.isGrounded;
+            // "no chão" com tolerância: descendo morro o controlador às vezes descola por um quadro
+            bool grounded = groundedT < 0.12f;
             float sp = inp.sprint && hunger > 5 ? sprintSpeed : speed;
             if (swing > 0) sp *= 0.3f;                               // golpeando: quase parado, pés firmes
             var desired = dir * sp;
@@ -92,21 +93,32 @@ namespace Floresta
             if (grounded && hv.sqrMagnitude > 0.1f && Game.I?.World != null)
             {
                 var ahead = transform.position + hv.normalized * 0.6f;
-                float rise = Game.I.World.Height(ahead.x, ahead.z) - Game.I.World.Height(transform.position.x, transform.position.z);
+                float rise = Game.I.World.Ground(ahead.x, ahead.z) - Game.I.World.Ground(transform.position.x, transform.position.z);
                 desired *= Mathf.Clamp(1 - rise * 0.9f, 0.55f, 1.1f);
             }
             float acc = grounded ? (desired.sqrMagnitude >= hv.sqrMagnitude ? 11f : 15f) : 2.5f;
             if (grounded && hv.sqrMagnitude > 1 && desired.sqrMagnitude > 0.1f && Vector3.Angle(hv, desired) > 110) acc = 22f;   // meia-volta
             hv = Vector3.MoveTowards(hv, desired, acc * dt);
-            if (grounded)
+            bool jumped = false;
+            if (grounded && vel.y <= 0.1f)
             {
                 vel.y = -2f;
-                if (inp.jump && swing <= 0) { vel.y = jumpSpeed; Audio.PlayAt("step", transform.position, 0.5f); }
+                if (inp.jump && swing <= 0) { vel.y = jumpSpeed; jumped = true; groundedT = 1; Audio.PlayAt("step", transform.position, 0.5f); }
             }
             vel.y -= gravity * dt;
             vel = new Vector3(hv.x, vel.y, hv.z);
             var before = transform.position;
             cc.Move(vel * dt);
+            bool onGround = cc.isGrounded;
+            // gruda no chão ao descer morro/degrau pequeno (sem "voar" e sem as pernas encolherem)
+            if (!onGround && !jumped && vel.y <= 0 && groundedT < 0.2f &&
+                Physics.Raycast(transform.position + Vector3.up * 0.3f, Vector3.down, out var gh, 0.95f, 1 << Layers.Ground, QueryTriggerInteraction.Ignore))
+            {
+                cc.Move(Vector3.down * (gh.distance - 0.3f + 0.02f));
+                onGround = true;
+            }
+            groundedT = onGround ? 0 : groundedT + dt;
+            if (onGround && vel.y < -2f) vel.y = -2f;
             // a velocidade real (encostou numa árvore = parou)
             var real = (transform.position - before) / Mathf.Max(dt, 1e-4f);
             vel.x = Mathf.Lerp(vel.x, real.x, 0.5f); vel.z = Mathf.Lerp(vel.z, real.z, 0.5f);
@@ -143,7 +155,7 @@ namespace Floresta
             }
             if (inp.eat) Eat();
 
-            anim.Tick(dt, vel, grounded, inp.aimDir.sqrMagnitude > 0 ? inp.aimDir : transform.forward, tool, swing);
+            anim.Tick(dt, groundedT < 0.15f ? new Vector3(vel.x, 0, vel.z) : vel, groundedT < 0.15f, inp.aimDir.sqrMagnitude > 0 ? inp.aimDir : transform.forward, tool, swing);
             if (tool == Tool.Regador && swing > 0.35f && swing < 0.8f && water > 0)
                 Fx.Drops(rig.tool.position + rig.tool.forward * 0.25f + rig.tool.up * 0.05f, transform.forward);
             foreach (var r in rig.renderers) r.enabled = !FirstPerson;
@@ -154,7 +166,7 @@ namespace Floresta
         void Footstep(Vector3 at)
         {
             var w = Game.I?.World;
-            bool wet = w != null && w.Height(at.x, at.z) < World.WaterLevel + 0.05f;
+            bool wet = w != null && w.Ground(at.x, at.z) < World.WaterLevel + 0.05f;
             float v = new Vector3(vel.x, 0, vel.z).magnitude;
             Audio.PlayAt(wet ? "splash" : "step", at, (wet ? 0.35f : 0.18f) + v * 0.04f, 0.04f);
             if (wet) Fx.Splash(at);
@@ -239,7 +251,7 @@ namespace Floresta
             var w = Game.I?.World;
             if (w == null) return false;
             var p = transform.position + transform.forward * 1.5f;
-            return w.Height(p.x, p.z) < World.WaterLevel - 0.1f || w.Height(transform.position.x, transform.position.z) < World.WaterLevel + 0.2f;
+            return w.Ground(p.x, p.z) < World.WaterLevel - 0.1f || w.Ground(transform.position.x, transform.position.z) < World.WaterLevel + 0.2f;
         }
 
         void Strike(Vector3 fwd)

@@ -5,9 +5,9 @@ Shader "Floresta/Water"
 {
     Properties
     {
-        _Shallow ("Raso", Color) = (0.32, 0.66, 0.62, 1)
-        _Deep ("Fundo", Color) = (0.05, 0.22, 0.30, 1)
-        _Foam ("Espuma", Color) = (0.92, 0.96, 0.94, 1)
+        _Shallow ("Raso", Color) = (0.56, 0.94, 0.86, 1)
+        _Deep ("Fundo", Color) = (0.08, 0.48, 0.62, 1)
+        _Foam ("Espuma", Color) = (1, 1, 1, 1)
         _DepthMax ("Profundidade de cor", Float) = 2.6
     }
     SubShader
@@ -21,13 +21,13 @@ Shader "Floresta/Water"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma multi_compile_fog
             #pragma target 3.0
             #include "UnityCG.cginc"
+            #include "Floresta.cginc"
             fixed4 _Shallow, _Deep, _Foam;
             float _DepthMax;
             float _FlorestaTime;
-            float4 _FlorestaSunDir, _FlorestaSunColor, _FlorestaSkyColor, _FlorestaAmbient;
+            float4 _FlorestaSunColor, _FlorestaSkyColor, _FlorestaAmbient;
             UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 
             struct appdata { float4 vertex : POSITION; fixed4 color : COLOR; };
@@ -37,7 +37,6 @@ Shader "Floresta/Water"
                 float3 wpos : TEXCOORD0;
                 float4 screen : TEXCOORD1;
                 float2 flow : TEXCOORD2;
-                UNITY_FOG_COORDS(3)
             };
 
             float hash(float2 p) { return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453); }
@@ -62,7 +61,6 @@ Shader "Floresta/Water"
                 o.screen = ComputeScreenPos(o.pos);
                 COMPUTE_EYEDEPTH(o.screen.z);
                 o.flow = fl;
-                UNITY_TRANSFER_FOG(o, o.pos);
                 return o;
             }
 
@@ -105,9 +103,8 @@ Shader "Floresta/Water"
 
                 float alpha = lerp(0.5, 0.93, d01);
                 alpha = max(alpha, foam * 0.95) * saturate(depth * 5);
-                fixed4 c = fixed4(col, alpha);
-                UNITY_APPLY_FOG(i.fogCoord, c);
-                return c;
+                col = OmnoFog(col, i.wpos);
+                return fixed4(col, alpha);
             }
             ENDCG
         }

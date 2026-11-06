@@ -9,6 +9,7 @@ namespace Floresta
     public class CameraRig
     {
         public readonly Camera cam;
+        public readonly OmnoPost Post;
         public float Yaw, Pitch = 12;
         public bool FirstPerson;
         public float Blend;                 // 0 = 3ª pessoa, 1 = 1ª pessoa (suavizado)
@@ -26,6 +27,8 @@ namespace Floresta
             cam.fieldOfView = 62;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.depthTextureMode |= DepthTextureMode.Depth;     // a água usa a profundidade (cor e espuma na margem)
+            cam.allowHDR = true;                                 // brilho acima de 1 alimenta o bloom
+            Post = go.AddComponent<OmnoPost>();
             go.AddComponent<AudioListener>();
         }
 

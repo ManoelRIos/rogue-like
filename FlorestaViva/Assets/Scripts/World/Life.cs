@@ -26,6 +26,7 @@ namespace Floresta
         readonly Vector4[] cbuf = new Vector4[1023];
         readonly MaterialPropertyBlock mpb = new();
         readonly AudioSource river;
+        readonly Mesh orbMesh;
         float soundT = 3, leafAcc;
 
         public Life(Flora f, World w, Transform parent)
@@ -96,6 +97,9 @@ namespace Floresta
             mm.Blob(Vector3.zero, new Vector3(1, 0.25f, 1), Color.white, 0.15f, rng, 1);
             mistMesh = mm.ToMesh("nevoa");
             river = Audio.Loop3D("river", Vector3.zero, 4, 48);
+            var om = new MeshBuilder();
+            om.Blob(Vector3.zero, Vector3.one * 0.5f, Color.white, 0.05f, rng, 1);
+            orbMesh = om.ToMesh("luz");
             for (int flock = 0; flock < 4; flock++)
             {
                 var c = new Vector3(rng.Range(-110, 110), 0, rng.Range(-110, 110));
@@ -121,6 +125,7 @@ namespace Floresta
             Mist(cam, darkness, time, t);
             FallingLeaves(cam, darkness, dt);
             Sounds(cam, darkness, dt);
+            Spirits(cam, darkness, t);
             // som do rio vem do ponto do rio mais perto de você
             if (river) river.transform.position = new Vector3(cam.x, World.WaterLevel, world.RiverZ(cam.x));
             // vagalumes: aparecem do crepúsculo em diante
@@ -196,7 +201,7 @@ namespace Floresta
                 {
                     var d = Random.insideUnitCircle * 30f;
                     b.pos = new Vector3(cam.x + d.x, 0, cam.z + d.y);
-                    b.pos.y = world.Height(b.pos.x, b.pos.z) + 0.8f;
+                    b.pos.y = world.Ground(b.pos.x, b.pos.z) + 0.8f;
                     b.target = b.pos;
                 }
                 if (b.rest > 0) b.rest -= dt;
@@ -205,7 +210,7 @@ namespace Floresta
                     // escolhe uma flor/ponto próximo; às vezes pousa um pouco
                     var d = Random.insideUnitCircle * 3f;
                     b.target = b.pos + new Vector3(d.x, 0, d.y);
-                    b.target.y = world.Height(b.target.x, b.target.z) + Random.Range(0.35f, 1.4f);
+                    b.target.y = world.Ground(b.target.x, b.target.z) + Random.Range(0.35f, 1.4f);
                     if (Random.value < 0.3f) b.rest = Random.Range(1f, 3f);
                 }
                 var to = b.target - b.pos;
@@ -258,7 +263,7 @@ namespace Floresta
                 {
                     float h = Hash(x * 31.7f + z * 17.3f);
                     float wx = x * C + Hash(x * 3.1f + z) * C, wz = z * C + Hash(z * 4.7f + x) * C;
-                    float gy = world.Height(wx, wz);
+                    float gy = world.Ground(wx, wz);
                     // mais névoa nas partes baixas e perto do rio
                     float low = Mathf.Clamp01(1 - (gy - 0.5f) / 5f) + (world.RiverDist(wx, wz) < 14 ? 0.5f : 0);
                     if (h > 0.25f + low * 0.45f || gy < World.WaterLevel - 0.5f) continue;
@@ -283,7 +288,7 @@ namespace Floresta
                 leafAcc -= 1;
                 var d = Random.insideUnitCircle * 14f;
                 var p = new Vector3(cam.x + d.x, 0, cam.z + d.y);
-                p.y = world.Height(p.x, p.z) + Random.Range(5f, 9f);
+                p.y = world.Ground(p.x, p.z) + Random.Range(5f, 9f);
                 int v = Random.value < 0.25f ? Fx.LeafAutumn : Random.value < 0.5f ? Fx.LeafOak : Fx.LeafBirch;
                 Fx.Leaves(p, 0.2f, 1, v);
             }
@@ -295,7 +300,7 @@ namespace Floresta
             if (soundT > 0) return;
             var d = Random.insideUnitCircle.normalized * Random.Range(14f, 40f);
             var at = new Vector3(cam.x + d.x, 0, cam.z + d.y);
-            at.y = world.Height(at.x, at.z) + Random.Range(1f, 8f);
+            at.y = world.Ground(at.x, at.z) + Random.Range(1f, 8f);
             bool nearRiver = world.RiverDist(cam.x, cam.z) < 35;
             if (darkness < 0.4f)
             {
@@ -312,6 +317,26 @@ namespace Floresta
                 else Audio.PlayAt("twig", at, 0.6f, 1f, 45);           // algo pisou num galho...
             }
             if (Wind.Strength > 1.3f && Random.value < 0.25f) Audio.PlayAt("gust", cam + new Vector3(Wind.Dir.x, 2, Wind.Dir.y) * -12, 0.35f, 3f, 60);
+        }
+
+        /// <summary>Luzinhas do rio: no lusco-fusco, orbes turquesa flutuam devagar sobre a água (some na noite fechada).</summary>
+        void Spirits(Vector3 cam, float darkness, float t)
+        {
+            float amt = Mathf.Clamp01(1 - Mathf.Abs(darkness - 0.42f) / 0.32f);
+            if (amt < 0.02f) return;
+            int n = 0;
+            for (int i = 0; i < 24; i++)
+            {
+                float x = cam.x + (Hash(i * 7.3f) - 0.5f) * 90 + Mathf.Sin(t * 0.07f + i) * 6;
+                float z = world.RiverZ(x) + (Hash(i * 3.9f) - 0.5f) * 14 + Mathf.Cos(t * 0.09f + i * 2) * 3;
+                float y = Mathf.Max(world.Ground(x, z), World.WaterLevel) + 0.8f + Hash(i * 1.1f) * 2.2f + Mathf.Sin(t * 0.6f + i) * 0.35f;
+                float pulse = 0.6f + 0.4f * Mathf.Sin(t * 1.3f + i * 1.7f);
+                buf[n] = Matrix4x4.TRS(new Vector3(x, y, z), Quaternion.identity, Vector3.one * (0.16f + Hash(i * 5.1f) * 0.12f));
+                cbuf[n] = new Vector4(0.5f, 0.95f, 1f, amt * pulse * 1.4f);
+                n++;
+            }
+            mpb.Clear(); mpb.SetVectorArray("_Color", cbuf);
+            Graphics.DrawMeshInstanced(orbMesh, 0, Mats.SoftAdd, buf, n, mpb, UnityEngine.Rendering.ShadowCastingMode.Off, false);
         }
 
         static float Wrap(float x, float m) => ((x % m) + m) % m;

@@ -47,6 +47,80 @@ namespace Floresta
 
         public float ForestDensity(float x, float z) => noise.Fbm(x, z, 3, 0.022f, 5);
 
+        // ------------------------------------------------------------------ altura EXATA da malha do terreno
+        // O terreno é feito de triângulos (com vértices levemente deslocados); a função Height é a curva
+        // "ideal". Para nada flutuar nem afundar, tudo que é colocado no chão usa Ground(), que lê o
+        // triângulo de verdade embaixo do ponto.
+        float[] gx, gy, gz;
+        int gn;
+
+        void EnsureGrid()
+        {
+            if (gx != null) return;
+            int n = Mathf.RoundToInt(Half * 2 / Cell);
+            gn = n + 1;
+            gx = new float[gn * gn]; gy = new float[gn * gn]; gz = new float[gn * gn];
+            for (int j = 0; j <= n; j++)
+                for (int i = 0; i <= n; i++)
+                {
+                    float wx = -Half + i * Cell, wz = -Half + j * Cell;
+                    if (!(i == 0 || j == 0 || i == n || j == n))
+                    {
+                        wx += (Hash(i, j) - 0.5f) * Cell * 0.35f;
+                        wz += (Hash(j + 913, i) - 0.5f) * Cell * 0.35f;
+                    }
+                    int k = j * gn + i;
+                    gx[k] = wx; gz[k] = wz; gy[k] = Height(wx, wz);
+                }
+        }
+
+        Vector3 GV(int i, int j) { int k = j * gn + i; return new Vector3(gx[k], gy[k], gz[k]); }
+
+        static bool InTri(float x, float z, Vector3 a, Vector3 b, Vector3 c, out float y)
+        {
+            float d = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+            y = 0;
+            if (Mathf.Abs(d) < 1e-8f) return false;
+            float l1 = ((b.z - c.z) * (x - c.x) + (c.x - b.x) * (z - c.z)) / d;
+            float l2 = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / d;
+            float l3 = 1 - l1 - l2;
+            const float e = -1e-4f;
+            if (l1 < e || l2 < e || l3 < e) return false;
+            y = l1 * a.y + l2 * b.y + l3 * c.y;
+            return true;
+        }
+
+        /// <summary>Altura do chão exatamente como desenhado (triângulo embaixo do ponto).</summary>
+        public float Ground(float x, float z)
+        {
+            EnsureGrid();
+            int n = gn - 1;
+            int ci = Mathf.FloorToInt((x + Half) / Cell), cj = Mathf.FloorToInt((z + Half) / Cell);
+            for (int r = 0; r < 9; r++)
+            {
+                int i = ci + (r == 0 ? 0 : (r - 1) % 3 - 1), j = cj + (r == 0 ? 0 : (r - 1) / 3 - 1);
+                if (i < 0 || j < 0 || i >= n || j >= n) continue;
+                var a = GV(i, j); var b = GV(i + 1, j); var c = GV(i + 1, j + 1); var d = GV(i, j + 1);
+                bool flip = ((i + j) & 1) == 0;
+                float y;
+                if (flip) { if (InTri(x, z, a, d, c, out y) || InTri(x, z, a, c, b, out y)) return y; }
+                else { if (InTri(x, z, a, d, b, out y) || InTri(x, z, b, d, c, out y)) return y; }
+            }
+            return Height(x, z);
+        }
+
+        /// <summary>O ponto mais baixo do chão num círculo (para troncos e pedras não ficarem com a borda no ar).</summary>
+        public float GroundMin(Vector3 p, float radius)
+        {
+            float m = Ground(p.x, p.z);
+            for (int k = 0; k < 6; k++)
+            {
+                float a = k / 6f * Mathf.PI * 2;
+                m = Mathf.Min(m, Ground(p.x + Mathf.Cos(a) * radius, p.z + Mathf.Sin(a) * radius));
+            }
+            return m;
+        }
+
         public Vector3 Normal(float x, float z)
         {
             const float e = 0.8f;
@@ -57,8 +131,9 @@ namespace Floresta
         public bool InBase(Vector3 p) => Vector2.Distance(new Vector2(p.x, p.z), new Vector2(BaseCenter.x, BaseCenter.z)) < BaseRadius;
 
         // ------------------------------------------------------------------ cores do chão
-        static readonly Color Sand = Col.Hex("#c9b27a"), Mud = Col.Hex("#6b5236"), GrassA = Col.Hex("#5f8f3a"), GrassB = Col.Hex("#7aa443"),
-            ForestFloor = Col.Hex("#3f5e2a"), Rock = Col.Hex("#7a7468"), RockD = Col.Hex("#5e5950"), Meadow = Col.Hex("#9cb04f"), Path = Col.Hex("#8a6e48");
+        // paleta "Omno": verdes saturados puxando para o amarelo na luz e para o turquesa na mata, pedras lilases
+        static readonly Color Sand = Col.Hex("#ead39a"), Mud = Col.Hex("#8a6a4a"), GrassA = Col.Hex("#64ac48"), GrassB = Col.Hex("#93c853"),
+            ForestFloor = Col.Hex("#3c7a50"), Rock = Col.Hex("#9a90a6"), RockD = Col.Hex("#7a708c"), Meadow = Col.Hex("#b0d05c"), Path = Col.Hex("#b08a5a");
 
         Color GroundColor(Vector3 p, Vector3 n, Rng rng)
         {
@@ -80,6 +155,7 @@ namespace Floresta
         public void Build()
         {
             Root = new GameObject("Mundo").transform;
+            EnsureGrid();
             int n = Mathf.RoundToInt(Half * 2 / Cell);
             int chunks = Mathf.CeilToInt(n / (float)ChunkCells);
             for (int cz = 0; cz < chunks; cz++)
@@ -133,15 +209,7 @@ namespace Floresta
             for (int z = z0; z < Mathf.Min(n, z0 + ChunkCells); z++)
                 for (int x = x0; x < Mathf.Min(n, x0 + ChunkCells); x++)
                 {
-                    Vector3 P(int i, int j)
-                    {
-                        float wx = -Half + i * Cell, wz = -Half + j * Cell;
-                        // pequeno deslocamento determinístico para quebrar a grade (menos "quadriculado")
-                        float jx = (Hash(i, j) - 0.5f) * Cell * 0.35f, jz = (Hash(j + 913, i) - 0.5f) * Cell * 0.35f;
-                        if (i == 0 || j == 0 || i == n || j == n) { jx = 0; jz = 0; }
-                        wx += jx; wz += jz;
-                        return new Vector3(wx, Height(wx, wz), wz);
-                    }
+                    Vector3 P(int i, int j) => GV(i, j);     // mesmos vértices que Ground() usa
                     var a = P(x, z); var b = P(x + 1, z); var c = P(x + 1, z + 1); var d = P(x, z + 1);
                     bool flip = ((x + z) & 1) == 0;
                     if (flip) { AddTri(mb, a, d, c, rng); AddTri(mb, a, c, b, rng); }
@@ -157,6 +225,9 @@ namespace Floresta
             var n = Vector3.Cross(b - a, c - a).normalized;
             var col = GroundColor((a + b + c) / 3f, n, rng);
             mb.Tri(a, b, c, Col.A(col, 0));
+            // facetas bem de leve: a normal puxa para a curva "ideal" do morro
+            int k = mb.v.Count - 3;
+            mb.Soften(k, Normal(a.x, a.z), 0.55f); mb.Soften(k + 1, Normal(b.x, b.z), 0.55f); mb.Soften(k + 2, Normal(c.x, c.z), 0.55f);
         }
 
         static float Hash(int x, int y)
@@ -173,7 +244,7 @@ namespace Floresta
         public float GroundAt(Vector3 p)
         {
             if (Physics.Raycast(new Vector3(p.x, 200, p.z), Vector3.down, out var hit, 400, 1 << Layers.Ground)) return hit.point.y;
-            return Height(p.x, p.z);
+            return Ground(p.x, p.z);
         }
     }
 

@@ -77,7 +77,7 @@ namespace Floresta
                 bounces = 0;
                 // ângulo até encostar no chão (morro abaixo cai mais)
                 var tip = basePos + fallDir * height * 0.9f;
-                float fallDrop = basePos.y - (Fx.World != null ? Fx.World.Height(tip.x, tip.z) : basePos.y);
+                float fallDrop = basePos.y - (Fx.World != null ? Fx.World.Ground(tip.x, tip.z) : basePos.y);
                 groundAngle = Mathf.Clamp(90f + Mathf.Atan2(fallDrop, height * 0.9f) * Mathf.Rad2Deg, 70f, 108f) * Mathf.Deg2Rad - 0.05f;
                 Audio.PlayAt("creak", transform.position + Vector3.up * 2, 0.9f);
                 MakeStump();
@@ -178,7 +178,7 @@ namespace Floresta
         void Impact()
         {
             var top = basePos + fallDir * height * 0.65f;
-            if (Fx.World != null) top.y = Fx.World.Height(top.x, top.z) + 0.5f;
+            if (Fx.World != null) top.y = Fx.World.Ground(top.x, top.z) + 0.5f;
             Audio.PlayAt("thud", top, 1f);
             Audio.PlayAt("leaves", top, 0.8f, 0.05f);
             Fx.Leaves(top + Vector3.up * 0.8f, height * 0.25f, 26, leafVariant, 2.5f);
@@ -236,12 +236,14 @@ namespace Floresta
         }
 
         // ------------------------------------------------------------------ malhas das espécies
-        static readonly Color Bark = Col.Hex("#5a3d28"), BarkD = Col.Hex("#3e2a1c"), Birch = Col.Hex("#ddd6c4"),
-            Pine = Col.Hex("#2f5a34"), PineL = Col.Hex("#4b7f3e"), Oak = Col.Hex("#4f7d2f"), OakL = Col.Hex("#8fb84a"),
-            Autumn = Col.Hex("#c7782f"), AutumnL = Col.Hex("#e6b34a"), BirchLeaf = Col.Hex("#7fae3c"), BirchLeafL = Col.Hex("#c4d860"),
-            Dead = Col.Hex("#4a3e36"), Bush = Col.Hex("#3e6e2c"), BushL = Col.Hex("#69a03c"), Berry = Col.Hex("#c22a3c"),
-            Stone = Col.Hex("#8a8578"), StoneL = Col.Hex("#b0aa9a"), Moss = Col.Hex("#5a7a34"), Grass = Col.Hex("#6f9c3c"), GrassL = Col.Hex("#a6c855"),
-            Cap = Col.Hex("#b8342c"), CapGlow = Col.Hex("#5fd6c8"), Stem = Col.Hex("#e8dcc0");
+        // paleta "Omno": copas saturadas com topo claro, pinheiros turquesa, cerejeira rosa, pedras lilases
+        static readonly Color Bark = Col.Hex("#6a4632"), BarkD = Col.Hex("#4a3024"), Birch = Col.Hex("#efe6d6"),
+            Pine = Col.Hex("#23705e"), PineL = Col.Hex("#54ad7a"), Oak = Col.Hex("#4c9a3c"), OakL = Col.Hex("#bfe060"),
+            Autumn = Col.Hex("#ee7a44"), AutumnL = Col.Hex("#ffc66a"), BirchLeaf = Col.Hex("#7ccf62"), BirchLeafL = Col.Hex("#e6f584"),
+            Blossom = Col.Hex("#e889b4"), BlossomL = Col.Hex("#ffd6e8"),
+            Dead = Col.Hex("#5a4a48"), Bush = Col.Hex("#3a8a4e"), BushL = Col.Hex("#86d05e"), Berry = Col.Hex("#e8385a"),
+            Stone = Col.Hex("#9a90a8"), StoneL = Col.Hex("#d0c6dc"), Moss = Col.Hex("#6ab04c"), Grass = Col.Hex("#6cbc4a"), GrassL = Col.Hex("#d6f070"),
+            Cap = Col.Hex("#f0605a"), CapGlow = Col.Hex("#6af6e6"), Stem = Col.Hex("#f4ead0");
 
         void Add(string k, Mesh m) { if (!meshes.TryGetValue(k, out var l)) meshes[k] = l = new List<Mesh>(); l.Add(m); }
 
@@ -253,40 +255,50 @@ namespace Floresta
                 // pinheiro: tronco + 3-4 cones empilhados
                 var mb = new MeshBuilder();
                 float h = r.Range(7, 10);
-                mb.Cylinder(Vector3.zero, h * 0.4f, 0.32f, 0.22f, 6, Bark, 0, 0.05f, 0, r);
+                mb.Cylinder(new Vector3(0, -0.6f, 0), h * 0.4f + 0.6f, 0.34f, 0.22f, 6, Bark, 0, 0.05f, 0, r);      // tronco entra no chão
                 int tiers = r.Int(3, 4);
                 for (int i = 0; i < tiers; i++)
                 {
                     float y = h * 0.22f + i * h * 0.19f, rad = (2.4f - i * 0.5f) * r.Range(0.9f, 1.1f);
+                    int k0 = mb.v.Count;
                     mb.Cylinder(new Vector3(0, y, 0), h * 0.32f, rad, 0.05f, 7, Color.Lerp(Pine, PineL, i / (float)tiers), 0.25f + i * 0.15f, 0.5f + i * 0.15f, r.Range(0, 3), r);
+                    for (int k = k0; k < mb.v.Count; k++)     // sombreado macio no cone (sem quinas duras)
+                    {
+                        var q = mb.v[k]; var radial = new Vector3(q.x, 0, q.z);
+                        if (radial.sqrMagnitude > 1e-4f) mb.Soften(k, (radial.normalized + Vector3.up * 0.75f).normalized, 0.7f);
+                    }
                 }
                 Add("pinheiro", mb.ToMesh("pinheiro"));
 
                 // carvalho: tronco grosso + copa de várias bolhas (às vezes outonal)
                 mb = new MeshBuilder();
                 h = r.Range(3.2f, 4.2f);
-                mb.Cylinder(Vector3.zero, h, 0.55f, 0.35f, 7, Bark, 0, 0.05f, 0, r);
+                mb.Cylinder(new Vector3(0, -0.6f, 0), h + 0.6f, 0.6f, 0.35f, 7, Bark, 0, 0.05f, 0, r);
                 mb.Cylinder(new Vector3(0, h * 0.7f, 0), 1.5f, 0.22f, 0.12f, 5, BarkD, 0.05f, 0.15f, 0.6f, r);
-                bool autumn = v == 3;
+                bool autumn = v == 3, blossom = v == 2;     // uma variante de outono, uma cerejeira
+                mb.SmoothBlobs = 0.8f;
                 for (int i = 0; i < 4; i++)
                 {
                     var c = new Vector3(r.Range(-1.3f, 1.3f), h + r.Range(0.6f, 2.0f), r.Range(-1.3f, 1.3f));
-                    mb.Blob(c, Vector3.one * r.Range(1.6f, 2.3f), autumn ? Autumn : Oak, 0.18f, r, 1, 0.3f, 0.7f, autumn ? AutumnL : OakL);
+                    mb.Blob(c, Vector3.one * r.Range(1.6f, 2.3f), autumn ? Autumn : blossom ? Blossom : Oak, 0.14f, r, 1, 0.3f, 0.7f, autumn ? AutumnL : blossom ? BlossomL : OakL);
                 }
+                mb.SmoothBlobs = 0;
                 Add("carvalho", mb.ToMesh("carvalho"));
 
                 // bétula: tronco claro com manchas + copa alta
                 mb = new MeshBuilder();
                 h = r.Range(5, 7);
-                mb.Cylinder(Vector3.zero, h, 0.22f, 0.16f, 6, Birch, 0, 0.1f, 0, r);
+                mb.Cylinder(new Vector3(0, -0.6f, 0), h + 0.6f, 0.23f, 0.16f, 6, Birch, 0, 0.1f, 0, r);
                 for (int i = 0; i < 4; i++) mb.Box(new Vector3(-0.23f, 0.8f + i * 1.2f, -0.05f), new Vector3(-0.15f, 1.0f + i * 1.2f, 0.12f), BarkD);
-                mb.Blob(new Vector3(0, h + 0.4f, 0), new Vector3(1.4f, 2.4f, 1.4f), BirchLeaf, 0.15f, r, 1, 0.35f, 0.8f, BirchLeafL);
+                mb.SmoothBlobs = 0.8f;
+                mb.Blob(new Vector3(0, h + 0.4f, 0), new Vector3(1.4f, 2.4f, 1.4f), BirchLeaf, 0.12f, r, 1, 0.35f, 0.8f, BirchLeafL);
+                mb.SmoothBlobs = 0;
                 Add("betula", mb.ToMesh("betula"));
 
                 // árvore morta (galhos retorcidos) — bonita de dia, assustadora à noite
                 mb = new MeshBuilder();
                 h = r.Range(4, 6);
-                mb.Cylinder(Vector3.zero, h, 0.35f, 0.08f, 5, Dead, 0, 0.05f, 0, r);
+                mb.Cylinder(new Vector3(0, -0.6f, 0), h + 0.6f, 0.37f, 0.08f, 5, Dead, 0, 0.05f, 0, r);
                 for (int i = 0; i < 4; i++)
                 {
                     float y = h * r.Range(0.45f, 0.85f), ang = r.Range(0, 6.28f);
@@ -298,7 +310,7 @@ namespace Floresta
                 Add("morta", mb.ToMesh("morta"));
 
                 // arbusto com frutinhas
-                mb = new MeshBuilder();
+                mb = new MeshBuilder { SmoothBlobs = 0.75f };
                 mb.Blob(new Vector3(0, 0.6f, 0), new Vector3(1.1f, 0.75f, 1.1f), Bush, 0.2f, r, 1, 0.2f, 0.45f, BushL);
                 for (int i = 0; i < 7; i++)
                 {
@@ -422,14 +434,14 @@ namespace Floresta
             bool Spot(Vector3 p, float spread, float minY, out Vector3 q)
             {
                 q = p + new Vector3(rng.Range(-spread, spread), 0, rng.Range(-spread, spread));
-                q.y = W.Height(q.x, q.z) - 0.02f;
+                q.y = W.Ground(q.x, q.z) - 0.02f;
                 return q.y > minY;
             }
             for (float z = -World.Half + 4; z < World.Half - 4; z += step)
                 for (float x = -World.Half + 4; x < World.Half - 4; x += step)
                 {
                     var p = new Vector3(x + rng.Range(-1.4f, 1.4f), 0, z + rng.Range(-1.4f, 1.4f));
-                    p.y = W.Height(p.x, p.z);
+                    p.y = W.Ground(p.x, p.z);
                     if (p.y < 0.3f) continue;                    // água
                     var n = W.Normal(p.x, p.z);
                     if (n.y < 0.72f) { if (rng.Chance(0.25f)) Place("pedra", p, n, rng.Range(0.8f, 1.8f), Item.Pedra, 5, 3); continue; }
@@ -471,7 +483,11 @@ namespace Floresta
             var mesh = list[variant];
             var go = Mats.Object(kind, mesh, Mats.LowPoly, root);
             var up = Vector3.Slerp(Vector3.up, normal, tree ? 0.15f : 0.6f);
-            go.transform.SetPositionAndRotation(p - Vector3.up * 0.05f, Quaternion.FromToRotation(Vector3.up, up) * Quaternion.Euler(0, rng.Range(0, 360f), 0));
+            // assenta no ponto mais baixo embaixo da base (tronco/pedra nunca fica com a borda no ar)
+            float foot = kind switch { "carvalho" => 0.55f, "pinheiro" => 0.35f, "betula" => 0.25f, "morta" => 0.35f, "pedra" => 0.75f, "arbusto" => 0.6f, _ => 0.2f } * scale;
+            float sink = kind switch { "pedra" => 0.18f, "arbusto" => 0.12f, _ => tree ? 0.12f : 0.04f } * scale;
+            p.y = W.GroundMin(p, foot) - sink;
+            go.transform.SetPositionAndRotation(p, Quaternion.FromToRotation(Vector3.up, up) * Quaternion.Euler(0, rng.Range(0, 360f), 0));
             go.transform.localScale = Vector3.one * scale;
             go.layer = Layers.Gather;
             if (tree)
@@ -490,7 +506,7 @@ namespace Floresta
             g.respawn = tree ? 600 : 200;
             g.leafVariant = kind switch
             {
-                "pinheiro" => Fx.LeafPine, "carvalho" => variant == 3 ? Fx.LeafAutumn : Fx.LeafOak, "betula" => Fx.LeafBirch,
+                "pinheiro" => Fx.LeafPine, "carvalho" => variant == 3 ? Fx.LeafAutumn : variant == 2 ? Fx.LeafPink : Fx.LeafOak, "betula" => Fx.LeafBirch,
                 "arbusto" => Fx.LeafBush, _ => -1,
             };
             g.height = scale * kind switch { "pinheiro" => 8.5f, "carvalho" => 5.8f, "betula" => 6.5f, "morta" => 5f, _ => 1f };
