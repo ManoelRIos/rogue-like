@@ -201,9 +201,9 @@ namespace Ecos
             float x = Mathf.Round(b.pos.x / px) * px, y = Mathf.Round(b.pos.y / px) * px;
             v.go.transform.position = MathX.ToWorld(new Vector2(x, y), Height);
             // sprites direcionais (raio, flecha, foguete) apontam para a velocidade
-            float ang = (b.sprite == "laser" || b.sprite == "bolt" || b.sprite == "rocket" || b.sprite == "tracer") ? -MathX.Angle(b.vel) * Mathf.Rad2Deg : 0;
+            float ang = (b.sprite == "laser" || b.sprite == "bolt" || b.sprite == "rocket" || b.sprite == "tracer") ? -MathX.Angle(b.vel) * Mathf.Rad2Deg + PixelCamera.BillboardYaw : 0;
             if (b.sprite == "star") ang = b.age * 600f;
-            v.go.transform.rotation = Quaternion.Euler(0, PixelCamera.BillboardYaw, 0) * Quaternion.Euler(0, 0, ang);
+            v.go.transform.rotation = PixelCamera.Billboard * Quaternion.Euler(0, 0, ang);
         }
 
         public void Kill(Bullet b, bool impact)

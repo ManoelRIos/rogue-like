@@ -206,7 +206,8 @@ namespace Ecos
         {
             float h = 0;
             // ângulo na tela (y para cima)
-            float a = -aim;
+            // ângulo na tela (y para cima), considerando o giro da câmera no 3D
+            float a = -aim + PixelCamera.BillboardYaw * Mathf.Deg2Rad;
             float deg = a * Mathf.Rad2Deg;
             bool left = Mathf.Cos(a) < 0;
             bool up = deg > 50 && deg < 130;

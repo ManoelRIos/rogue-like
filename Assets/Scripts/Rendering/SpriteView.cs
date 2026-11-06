@@ -13,7 +13,7 @@ namespace Ecos
         public readonly SpriteRenderer Sr;
         public readonly SpriteRenderer Shadow;
         readonly MaterialPropertyBlock mpb = new();
-        float flash;
+        float flash, fade = 1;
         Color tint = Color.white;
 
         public SpriteView(string name, Material mat = null, float shadowSize = 0.8f, Transform parent = null)
@@ -50,7 +50,7 @@ namespace Ecos
             float x = Mathf.Round(p.x / px) * px, y = Mathf.Round(p.y / px) * px;
             Root.transform.position = MathX.ToWorld(new Vector2(x, y));
             Body.localPosition = new Vector3(0, Mathf.Round(h / px) * px, 0);
-            Body.localRotation = Quaternion.Euler(0, PixelCamera.BillboardYaw, 0);
+            Body.localRotation = PixelCamera.Billboard;
         }
 
         public void SetSprite(Sprite s) { if (Sr.sprite != s) Sr.sprite = s; }
@@ -65,6 +65,19 @@ namespace Ecos
             Sr.GetPropertyBlock(mpb);
             mpb.SetFloat("_Flash", f);
             Sr.SetPropertyBlock(mpb);
+        }
+
+        /// <summary>0 = some no escuro, 1 = normal (usado na transição entre salas).</summary>
+        public void SetFade(float f)
+        {
+            f = Mathf.Clamp01(f);
+            Visible = f > 0.01f;
+            if (Mathf.Approximately(f, fade)) return;
+            fade = f;
+            Sr.GetPropertyBlock(mpb);
+            mpb.SetFloat("_Fade", f);
+            Sr.SetPropertyBlock(mpb);
+            if (Shadow) Shadow.color = new Color(0, 0, 0, 0.45f * f);
         }
 
         public void SetTint(Color c)

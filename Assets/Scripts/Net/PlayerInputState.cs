@@ -39,8 +39,15 @@ namespace Ecos
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) m.x -= 1;
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) m.x += 1;
             s.move = m.sqrMagnitude > 0 ? m.normalized : Vector2.zero;
+            // no 3D a câmera pode girar: "para cima" segue a direção da câmera
+            float yaw = PixelCamera.BillboardYaw * Mathf.Deg2Rad;
+            if (Mathf.Abs(yaw) > 0.001f)
+            {
+                float c = Mathf.Cos(yaw), sn = Mathf.Sin(yaw);
+                s.move = new Vector2(s.move.x * c - s.move.y * sn, s.move.x * sn + s.move.y * c);
+            }
             s.aimPoint = PixelCamera.I.MouseGame(0.5f);
-            s.fire = Input.GetMouseButton(0);
+            s.fire = Input.GetMouseButton(0) && !Hud.PointerOverUI;
             s.roll = Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(1);
             s.reload = Input.GetKeyDown(KeyCode.R);
             s.blank = Input.GetKeyDown(KeyCode.Q) && !Input.GetKey(KeyCode.LeftShift);

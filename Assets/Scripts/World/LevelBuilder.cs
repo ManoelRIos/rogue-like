@@ -30,7 +30,11 @@ namespace Ecos
         // zonas
         GameObject[] zoneRoots;
         readonly List<LightingSystem.PointLight>[] zoneLights;
-        bool[] zoneVisible;
+        bool[] zoneVisible;        // zona deve estar visível (alvo)
+        float[] zoneFade;          // 0..1 atual (anima)
+        List<Renderer>[] zoneRenderers;
+        readonly MaterialPropertyBlock mpb = new();
+        public const float FadeTime = 0.35f;
 
         // listas do mesh em construção (uma por zona)
         class MeshData { public List<Vector3> v = new(); public List<Vector2> uv = new(); public List<int> tri = new(); }
@@ -48,6 +52,8 @@ namespace Ecos
             zoneRoots = new GameObject[zc];
             zoneLights = new List<LightingSystem.PointLight>[zc];
             zoneVisible = new bool[zc];
+            zoneFade = new float[zc];
+            zoneRenderers = new List<Renderer>[zc];
             meshes = new MeshData[zc];
             for (int i = 0; i < zc; i++)
             {
@@ -65,7 +71,13 @@ namespace Ecos
             BuildDoors();
             BuildTorches();
             BuildProps();
-            ShowOnly(new HashSet<int>());
+            for (int i = 0; i < zc; i++)
+            {
+                zoneRenderers[i] = new List<Renderer>(zoneRoots[i].GetComponentsInChildren<Renderer>(true));
+                zoneVisible[i] = false; zoneFade[i] = 0;
+                zoneRoots[i].SetActive(false);
+                foreach (var l in zoneLights[i]) l.enabled = false;
+            }
         }
 
         // ------------------------------------------------------------------ zonas
@@ -77,18 +89,52 @@ namespace Ecos
 
         Transform ZoneRoot(int z) => z >= 0 && z < zoneRoots.Length ? zoneRoots[z].transform : Root.transform;
 
-        /// <summary>Mostra apenas as zonas pedidas (as outras e suas luzes somem).</summary>
-        public void ShowOnly(HashSet<int> zones)
+        /// <summary>
+        /// Define quais zonas devem aparecer. A troca não é instantânea: a zona nova
+        /// surge do escuro e a antiga se apaga em FadeTime segundos (veja UpdateFades).
+        /// instant = true pula a animação (ao carregar o andar).
+        /// </summary>
+        public void ShowOnly(HashSet<int> zones, bool instant = false)
         {
             for (int i = 0; i < zoneRoots.Length; i++)
             {
                 bool v = zones.Contains(i);
-                if (zoneVisible[i] == v) continue;
                 zoneVisible[i] = v;
-                zoneRoots[i].SetActive(v);
-                foreach (var l in zoneLights[i]) l.enabled = v;
+                if (instant) { zoneFade[i] = v ? 1 : 0; ApplyFade(i); }
             }
         }
+
+        void UpdateFades(float dt)
+        {
+            float step = dt / FadeTime;
+            for (int i = 0; i < zoneRoots.Length; i++)
+            {
+                float target = zoneVisible[i] ? 1 : 0;
+                if (Mathf.Approximately(zoneFade[i], target)) continue;
+                zoneFade[i] = Mathf.MoveTowards(zoneFade[i], target, step);
+                ApplyFade(i);
+            }
+        }
+
+        void ApplyFade(int i)
+        {
+            float f = zoneFade[i];
+            bool on = f > 0.001f;
+            if (zoneRoots[i].activeSelf != on) zoneRoots[i].SetActive(on);
+            // curva suave (mais tempo no escuro, entra devagar)
+            float k = f * f * (3 - 2 * f);
+            foreach (var r in zoneRenderers[i])
+            {
+                if (r == null) continue;
+                r.GetPropertyBlock(mpb);
+                mpb.SetFloat("_Fade", k);
+                r.SetPropertyBlock(mpb);
+            }
+            foreach (var l in zoneLights[i]) { l.enabled = on; l.fade = k; }
+        }
+
+        /// <summary>Quanto a zona está visível agora (0..1).</summary>
+        public float ZoneFade(int z) => z >= 0 && z < zoneFade.Length ? zoneFade[z] * zoneFade[z] * (3 - 2 * zoneFade[z]) : 0;
 
         public bool ZoneVisible(int z) => z >= 0 && z < zoneVisible.Length && zoneVisible[z];
 
@@ -344,6 +390,7 @@ namespace Ecos
 
         public void Update(float time)
         {
+            UpdateFades(Time.unscaledDeltaTime);
             foreach (var (view, anim, phase) in animated) view.SetSprite(anim.At(time + phase));
             foreach (var r in L.rooms) foreach (var d in r.doors) d.gate?.Update(Time.deltaTime);
         }
@@ -404,7 +451,7 @@ namespace Ecos
             if (!root.gameObject.activeSelf) return;
             y += (target - y) * Mathf.Min(1, dt * 12f);
             root.localPosition = new Vector3(0, y, 0);
-            foreach (var p in parts) p.transform.localRotation = Quaternion.Euler(0, PixelCamera.BillboardYaw, 0);
+            foreach (var p in parts) p.transform.localRotation = PixelCamera.Billboard;
             if (target < 0 && y < -2.1f) root.gameObject.SetActive(false);
         }
     }

@@ -21,6 +21,7 @@ namespace Ecos
         string bannerTop, bannerName;
         float bannerT;
         public string BossName;
+        public static bool PointerOverUI;   // mouse sobre um botão do HUD (não atira)
         Sprite vignette;
 
         Sprite Vignette()
@@ -68,6 +69,7 @@ namespace Ecos
         public void Draw(float dt)
         {
             ui.Begin();
+            PointerOverUI = false;
             int W = ui.W, H = ui.H;
             var st = G.State;
 
@@ -163,6 +165,7 @@ namespace Ecos
             // ---- minimapa
             DrawMinimap(W - 78, 6, 72, 52);
             ui.Text($"ANDAR {G.FloorIndex + 1}", W - 6, 62, Dim, 1, Align.Right);
+            DrawViewToggle(W - 78, 74, 72);
 
             // ---- chefe
             if (BossName != null)
@@ -192,6 +195,24 @@ namespace Ecos
                 ui.Text(toastTitle, W / 2f, H * 0.16f, new Color(Accent.r, Accent.g, Accent.b, a), 2, Align.Center);
                 if (!string.IsNullOrEmpty(toastSub)) ui.Text(toastSub, W / 2f, H * 0.16f + 20, new Color(Ink.r, Ink.g, Ink.b, a), 1, Align.Center);
             }
+        }
+
+        /// <summary>Botão que alterna a câmera entre 2.5D e 3D (também: F2 ou V).</summary>
+        void DrawViewToggle(float x, float y, float w)
+        {
+            var pc = PixelCamera.I;
+            bool to3D = pc.Mode == CameraMode.ThreeD;
+            string label = to3D ? "VISÃO 2.5D" : "VISÃO 3D";
+            var m = pc.MouseRT();
+            const float h = 13;
+            bool hover = m.x >= x && m.x <= x + w && m.y >= y && m.y <= y + h;
+            PointerOverUI = hover;
+            ui.Frame(x, y, w, h, hover ? new Color(0.25f, 0.18f, 0.24f) : Panel, hover ? Accent : Edge);
+            // barra que mostra o progresso da transição
+            ui.Rect(x + 1, y + h - 2, (w - 2) * pc.Blend, 1, Accent);
+            ui.Text(label, x + w / 2, y + 3, hover ? Accent : Ink, 1, Align.Center);
+            if (hover && Input.GetMouseButtonDown(0)) { pc.ToggleMode(); Sfx.Play("select"); }
+            if (pc.Mode == CameraMode.ThreeD) ui.Text("Z/C GIRA", x + w, y + h + 3, Dim, 1, Align.Right);
         }
 
         void DrawMinimap(float x, float y, float w, float h)

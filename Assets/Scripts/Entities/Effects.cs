@@ -177,7 +177,7 @@ namespace Ecos
                 float s = p.size * k;
                 p.go.transform.localScale = new Vector3(s, s, 1);
                 p.go.transform.position = MathX.ToWorld(p.pos, p.h) + (p.additive ? new Vector3(0, 0, 0.05f) : Vector3.zero);
-                p.go.transform.rotation = p.flat ? Quaternion.Euler(90, 0, 0) : Quaternion.Euler(0, PixelCamera.BillboardYaw, p.spin);
+                p.go.transform.rotation = p.flat ? Quaternion.Euler(90, 0, 0) : PixelCamera.Billboard * Quaternion.Euler(0, 0, p.spin);
                 if (p.additive) { var c = p.sr.color; c.a = p.life / p.max; p.sr.color = c; }
             }
         }

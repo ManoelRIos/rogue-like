@@ -367,22 +367,20 @@ namespace Ecos
             {
                 if (z != curZone && curZone >= 0) prevZone = curZone;
                 curZone = z;
-                bool enteringRoom = z >= 0 && z < Level.rooms.Count && !force;
-                if (enteringRoom && !Level.rooms[z].visited) FlashScreen(Color.black, 0.85f);
             }
             visibleZones.Clear();
             if (curZone >= 0) visibleZones.Add(curZone);
             var room = curZone >= 0 && curZone < Level.rooms.Count ? Level.rooms[curZone] : null;
             bool deep = room != null && room.Contains(P.pos, 1.2f);
             if (!deep && prevZone >= 0) visibleZones.Add(prevZone);
-            Builder.ShowOnly(visibleZones);
+            Builder.ShowOnly(visibleZones, force);
 
             if (room != null)
                 cam.Bounds = Rect.MinMaxRect(room.x0 - 1.5f, room.y0 - 3.5f, room.x0 + room.w + 1.5f, room.y0 + room.h + 1.8f);
             else cam.Bounds = null;
         }
 
-        public bool IsVisible(Vector2 p) => Builder.ZoneVisible(Level.ZoneAt(p));
+        public float ZoneFadeAt(Vector2 p) => Builder.ZoneFade(Level.ZoneAt(p));
 
         public void OnEnemyKilled(Enemy e)
         {
@@ -610,7 +608,7 @@ namespace Ecos
                 c.t += dt;
                 corpses[i] = c;
                 c.view.SetSprite(c.anim.At(c.t));
-                c.view.Visible = Builder.ZoneVisible(c.zone);
+                c.view.SetFade(Builder.ZoneFade(c.zone));
             }
             Fx.Ambient(cam.Focus, dt, new Color(1f, 0.55f, 0.25f, 0.8f));
             for (int i = 0; i < Enemies.Count; i++) if (!Enemies[i].dead) Enemies[i].Tick(dt);
@@ -630,8 +628,8 @@ namespace Ecos
             }
             pickups.RemoveAll(p => p.dead);
             foreach (var it in interactables) if (it is ShopItem si && !si.display.dead) si.display.Tick(dt);
-            foreach (var pk in pickups) if (!pk.dead) pk.SetVisible(IsVisible(pk.pos));
-            foreach (var it in interactables) it.SetVisible(IsVisible(it.Pos));
+            foreach (var pk in pickups) if (!pk.dead) pk.SetFade(ZoneFadeAt(pk.pos));
+            foreach (var it in interactables) it.SetFade(ZoneFadeAt(it.Pos));
 
             // interação
             var P0 = Players[0];

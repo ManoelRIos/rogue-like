@@ -273,7 +273,9 @@ namespace Ecos
         protected virtual void UpdateVisual()
         {
             var P = Target();
-            bool left = P != null && P.pos.x < pos.x;
+            float yawR = PixelCamera.BillboardYaw * Mathf.Deg2Rad;
+            float scr = P != null ? -MathX.Angle(pos, P.pos) + yawR : 0;   // ângulo na tela
+            bool left = P != null && Mathf.Cos(scr) < 0;
             view.Flip(left);
             // estados: mira (aviso antes do tiro) > andando > parado; folhas antigas usam a 1ª animação
             Anim a = null;
@@ -286,7 +288,7 @@ namespace Ecos
             if (!active) view.SetShadowSize(r * 2.4f * (1 - Mathf.Max(0, spawnT) / 0.8f));
             if (gunSr && P != null)
             {
-                float ang = -MathX.Angle(pos, P.pos) * Mathf.Rad2Deg;
+                float ang = scr * Mathf.Rad2Deg;
                 gunKick = Mathf.Max(0, gunKick - Time.deltaTime * 8);
                 gunPivot.localPosition = new Vector3(left ? -0.2f : 0.2f, 0.5f, -0.05f);
                 gunPivot.localRotation = Quaternion.Euler(0, 0, ang);

@@ -31,7 +31,7 @@ Se algo da arte aparecer borrado, use o menu **Ecos → Configurar projeto**.
 | Interagir (baús, loja, armas, alçapão) | `E` |
 | Trocar arma | `1–9` ou roda do mouse |
 | Pausar | `Esc` / `P` |
-| Câmera 3D experimental | `F2` (no 3D, `Shift+Q/E` gira) |
+| Alternar visão 2.5D ↔ 3D | botão **VISÃO 3D** no HUD, `V` ou `F2` (no 3D, `Z`/`C` giram a câmera) |
 | Depuração (Editor) | `F1` modo deus · `F3` pular de andar |
 
 ## Primeiro andar: Cripta das Velas
@@ -42,7 +42,11 @@ revela o rosto derretido; ao morrer, derrete numa poça de cera). Os outros anda
 e vão sendo trocados aos poucos.
 
 - **Só a sala atual aparece**: o mapa é dividido em zonas (salas e corredores). O que está além das portas
-  fica no escuro até você entrar, e a câmera fica presa dentro da sala.
+  fica no escuro até você entrar, e a câmera fica presa dentro da sala. A troca é suave: a sala nova
+  surge do escuro e a anterior se apaga (sem tela preta).
+- **Visão 3D**: o botão do HUD faz uma transição de câmera de ~1 s (dolly zoom: a projeção ortográfica
+  vira perspectiva enquanto a câmera desce e se aproxima). No 3D a câmera gira com `Z`/`C`, o movimento
+  acompanha a direção da câmera e os sprites inclinam para continuar de frente.
 - **Esquiva é um salto**: agacha, salta (invulnerável no ar, com a sombra encolhendo) e pousa.
 - **Clima de terror**: luz ambiente baixa, tochas e castiçais com luz em degraus pontilhados, vinheta escura,
   brasas e poeira no ar, sangue, ossos, teias, caixões, estátuas e gaiolas pelas salas.

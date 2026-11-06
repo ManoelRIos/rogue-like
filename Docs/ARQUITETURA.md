@@ -11,11 +11,22 @@
 | Modo | Como funciona |
 | --- | --- |
 | `TwoPointFive` (padrão) | Ortográfica, inclinada 45°, com a projeção multiplicada por `Scale(1, √2, 1)`. Com isso o chão e a altura das paredes aparecem na mesma escala (16 px por tile). Os sprites ficam em pé, de frente para a câmera. |
-| `ThreeD` (F2, experimental) | Perspectiva atrás/acima do jogador; os sprites viram billboards que acompanham o giro (`PixelCamera.BillboardYaw`). |
+| `ThreeD` (botão do HUD, `V` ou `F2`) | Perspectiva atrás/acima do jogador, girável com `Z`/`C`. Os sprites viram billboards (`PixelCamera.Billboard`) que acompanham o giro e inclinam ~28° para a câmera. |
 
-Como as paredes e o chão são geometria 3D real, trocar de câmera não exige refazer o mapa. Para deixar o 3D
-"de verdade" depois, os próximos passos são: transição suave entre as câmeras (ex.: Cinemachine Blend),
-mira por raycast no chão (já é assim em `MouseGame`) e, se quiser, trocar sprites por modelos low-poly.
+**Transição** (`PixelCamera.ToggleMode`): durante ~1,1 s o campo de visão abre de 2° (quase ortográfico,
+idêntico ao 2.5D) até 50°, enquanto a distância diminui na mesma proporção para manter o enquadramento
+(dolly zoom). A escala vertical √2 da projeção cabinet volta para 1, a inclinação vai de 45° para 52° e a
+câmera deixa de ficar presa na sala. Como chão e paredes são geometria 3D real, nada do mapa precisa mudar.
+
+No 3D, `LocalInputSource` gira o movimento pelo ângulo da câmera e a mira continua por raycast no plano
+do chão (`MouseGame`). Próximos passos possíveis: esconder paredes que ficam entre a câmera e o jogador,
+câmera em terceira pessoa mais baixa e trocar alguns sprites por modelos low-poly.
+
+## Transição entre salas
+
+`LevelBuilder` agrupa os renderers e as luzes de cada zona. `ShowOnly` só define o alvo; a cada quadro a
+zona nova vai de 0 a 1 e a antiga de 1 a 0 em `FadeTime` (0,35 s), escrevendo `_Fade` nos materiais
+(o shader escurece até o preto do fundo) e na intensidade das luzes. Itens, corpos e baús usam o mesmo valor.
 
 ## Mapa procedural (World/)
 

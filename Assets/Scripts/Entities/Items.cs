@@ -9,7 +9,7 @@ namespace Ecos
         string Prompt { get; }   // null = não interativo agora
         void Use(Player p);
         void Remove();
-        void SetVisible(bool v);
+        void SetFade(float f);
     }
 
     public enum PickupType { Heart, Half, Ammo, Coin, Blank, Weapon }
@@ -74,7 +74,7 @@ namespace Ecos
         }
 
         public void Remove() { dead = true; view.Destroy(); }
-        public void SetVisible(bool v) { if (!dead) view.Visible = v; }
+        public void SetFade(float f) { if (!dead) view.SetFade(f); }
     }
 
     public class Chest : IInteractable
@@ -103,7 +103,7 @@ namespace Ecos
             GameManager.I.OpenChest(this);
         }
         public void Remove() => view.Destroy();
-        public void SetVisible(bool v) => view.Visible = v;
+        public void SetFade(float f) => view.SetFade(f);
     }
 
     public class ShopItem : IInteractable
@@ -137,7 +137,7 @@ namespace Ecos
         public string Prompt => sold ? null : $"E  COMPRAR {Label.ToUpper()} - {price} MOEDAS";
         public void Use(Player p) => GameManager.I.Buy(this, p);
         public void Remove() { ped.Destroy(); if (!display.dead) display.Remove(); }
-        public void SetVisible(bool v) { ped.Visible = v; display.SetVisible(v); }
+        public void SetFade(float f) { ped.SetFade(f); display.SetFade(f); }
     }
 
     public class Hatch : IInteractable
@@ -159,7 +159,12 @@ namespace Ecos
         public string Prompt => "E  DESCER PARA O PRÓXIMO ANDAR";
         public void Use(Player p) => GameManager.I.Descend();
         public void Remove() => Object.Destroy(sr.gameObject);
-        public void SetVisible(bool v) => sr.gameObject.SetActive(v);
+        readonly MaterialPropertyBlock mpb = new();
+        public void SetFade(float f)
+        {
+            sr.gameObject.SetActive(f > 0.01f);
+            sr.GetPropertyBlock(mpb); mpb.SetFloat("_Fade", f); sr.SetPropertyBlock(mpb);
+        }
     }
 
     /// <summary>Arma caída no chão (pegar com E).</summary>
@@ -179,6 +184,6 @@ namespace Ecos
             GameManager.I.Toast(Weapons.All[pickup.weaponId].name.ToUpper(), "NOVA ARMA! (1-9 PARA TROCAR)");
         }
         public void Remove() { if (!pickup.dead) pickup.Remove(); }
-        public void SetVisible(bool v) => pickup.SetVisible(v);
+        public void SetFade(float f) => pickup.SetFade(f);
     }
 }

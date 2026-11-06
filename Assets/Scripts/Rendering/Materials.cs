@@ -47,6 +47,7 @@ namespace Ecos
             public float flicker;       // 0..1
             public float phase;
             public bool enabled = true;
+            public float fade = 1;      // multiplicador (transição entre salas)
             internal float baseIntensity;
         }
 
@@ -94,7 +95,7 @@ namespace Ecos
                     var l = sorted[i].l;
                     float k = l.life > 0 ? Mathf.Clamp01(l.life * 4f) : 1f;
                     pos[i] = new Vector4(l.pos.x, l.pos.y, l.pos.z, l.radius);
-                    col[i] = new Vector4(l.color.r, l.color.g, l.color.b, l.intensity * k);
+                    col[i] = new Vector4(l.color.r, l.color.g, l.color.b, l.intensity * k * l.fade);
                 }
                 else { pos[i] = Vector4.zero; col[i] = Vector4.zero; }
             }

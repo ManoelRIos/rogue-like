@@ -14,6 +14,7 @@ Shader "Ecos/PixelLit"
         _Lit ("Recebe luz", Range(0,1)) = 1
         _Emission ("Emissão", Range(0,1)) = 0
         _Cutoff ("Recorte", Range(0,1)) = 0.5
+        _Fade ("Esmaecer (0 = escuro)", Range(0,1)) = 1
     }
     SubShader
     {
@@ -37,6 +38,7 @@ Shader "Ecos/PixelLit"
             float _Lit;
             float _Emission;
             float _Cutoff;
+            float _Fade;
 
             // definidos por Ecos.Rendering.LightingSystem
             float4 _EcosAmbient;
@@ -86,6 +88,7 @@ Shader "Ecos/PixelLit"
 
                 float3 col = c.rgb * light;
                 col = lerp(col, float3(1,1,1), _Flash);
+                col *= _Fade;   // transição suave entre salas (some no escuro)
                 return fixed4(col, 1);
             }
             ENDCG
