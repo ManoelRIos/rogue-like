@@ -64,14 +64,52 @@ namespace Floresta
             r.legL = Part("pernaE", r.root, Limb(0.6f, 0.11f, Pants, Boot), new Vector3(-0.14f, 0.72f, 0));
             r.legR = Part("pernaD", r.root, Limb(0.6f, 0.11f, Pants, Boot), new Vector3(0.14f, 0.72f, 0));
 
-            // machado na mão direita
-            mb = new MeshBuilder();
-            mb.Box(new Vector3(-0.025f, -0.05f, -0.025f), new Vector3(0.025f, 0.65f, 0.025f), Col.Hex("#7a5232"));
-            mb.Box(new Vector3(-0.03f, 0.48f, 0.02f), new Vector3(0.03f, 0.66f, 0.22f), Col.Hex("#9aa0a8"));
-            r.tool = Part("ferramenta", r.armR, mb.ToMesh("machado"), new Vector3(0, -0.55f, 0.05f));
+            // ferramenta na mão direita (troca com 1-4)
+            r.tool = Part("ferramenta", r.armR, ToolMesh(0), new Vector3(0, -0.55f, 0.05f));
             r.tool.localRotation = Quaternion.Euler(80, 0, 0);
             r.renderers = r.root.GetComponentsInChildren<Renderer>(true);
             return r;
+        }
+
+        static Mesh[] tools;
+        static readonly Color Wood = Col.Hex("#7a5232"), Iron = Col.Hex("#9aa0a8");
+
+        /// <summary>0 machado, 1 enxada, 2 saco de sementes, 3 regador.</summary>
+        public static Mesh ToolMesh(int i)
+        {
+            if (tools == null)
+            {
+                tools = new Mesh[4];
+                var rng = new Rng(8);
+                var mb = new MeshBuilder();
+                mb.Box(new Vector3(-0.025f, -0.05f, -0.025f), new Vector3(0.025f, 0.65f, 0.025f), Wood);
+                mb.Box(new Vector3(-0.03f, 0.48f, 0.02f), new Vector3(0.03f, 0.66f, 0.22f), Iron);
+                tools[0] = mb.ToMesh("machado");
+                mb = new MeshBuilder();
+                mb.Box(new Vector3(-0.02f, -0.1f, -0.02f), new Vector3(0.02f, 0.85f, 0.02f), Wood);
+                mb.Box(new Vector3(-0.09f, 0.78f, 0.0f), new Vector3(0.09f, 0.84f, 0.2f), Iron);
+                tools[1] = mb.ToMesh("enxada");
+                mb = new MeshBuilder();
+                mb.Blob(new Vector3(0, -0.02f, 0.05f), new Vector3(0.13f, 0.15f, 0.12f), Col.Hex("#c8a878"), 0.08f, rng, 1);
+                mb.Cylinder(new Vector3(0, 0.1f, 0.05f), 0.06f, 0.06f, 0.08f, 6, Col.Hex("#a8885a"), 0, 0, 0, rng);
+                mb.Box(new Vector3(-0.07f, 0.1f, -0.02f), new Vector3(0.07f, 0.12f, 0.12f), Col.Hex("#6a4a2a"));
+                tools[2] = mb.ToMesh("sementes");
+                mb = new MeshBuilder();
+                var tin = Col.Hex("#7a9aa8");
+                mb.Cylinder(new Vector3(0, -0.05f, 0.08f), 0.24f, 0.11f, 0.1f, 8, tin, 0, 0, 0, rng);
+                mb.Cylinder(new Vector3(0, 0.05f, 0.18f), 0.3f, 0.03f, 0.02f, 5, tin, 0, 0, 0, rng);   // bico
+                mb.Box(new Vector3(-0.015f, 0.19f, -0.02f), new Vector3(0.015f, 0.25f, 0.18f), Col.Hex("#5a7a88"));
+                tools[3] = mb.ToMesh("regador");
+            }
+            return tools[Mathf.Clamp(i, 0, 3)];
+        }
+
+        public void SetTool(int i)
+        {
+            if (tool == null) return;
+            tool.GetComponent<MeshFilter>().sharedMesh = ToolMesh(i);
+            // machado e enxada ficam apontados para a frente; saco e regador, pendurados
+            tool.localRotation = i <= 1 ? Quaternion.Euler(80, 0, 0) : Quaternion.Euler(10, 0, 0);
         }
 
         static readonly Color Shadow = Col.Hex("#0e0b12"), ShadowL = Col.Hex("#231a2a");

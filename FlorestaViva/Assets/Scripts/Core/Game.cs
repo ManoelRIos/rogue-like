@@ -15,7 +15,8 @@ namespace Floresta
         public float MouseSensitivity = 2.2f;
 
         public World World; public Flora Flora; public Life Life; public DayNight Cycle;
-        public Campfire Fire; public NightDirector Director; public CameraRig Rig; public Hud Hud;
+        public Campfire Fire; public NightDirector Director; public CameraRig Rig; public Hud Hud; public Farm Farm;
+        int selectedTool;
         public readonly List<PlayerController> Players = new();
         public PlayerController Player => Players.Count > 0 ? Players[0] : null;
         public bool Loading { get; private set; } = true;
@@ -54,7 +55,8 @@ namespace Floresta
             Fire = new Campfire(World, World.Root);
             Life = new Life(Flora, World.Root);
             Cycle = new DayNight();
-            Director = new NightDirector(World, Flora, Fire);
+            Farm = new Farm(World, Fire, World.Root);
+            Director = new NightDirector(World, Flora, Fire) { farm = Farm };
             Cycle.OnNight += () =>
             {
                 Audio.Play("nightfall", 0.9f);
@@ -73,10 +75,13 @@ namespace Floresta
             Player.Respawn(spawn); Player.health = 100;
             foreach (Item i in System.Enum.GetValues(typeof(Item))) Player.inventory[i] = 0;
             Player.inventory[Item.Madeira] = 2;
+            Player.inventory[Item.SementeCenoura] = 6;
+            Player.inventory[Item.SementeAbobora] = 3;
+            Player.water = PlayerController.WaterMax;
             Rig.Yaw = 0;
             Loading = false;
             Lock(true);
-            Hud.Banner("FLORESTA VIVA", "colete madeira antes do anoitecer", 6f);
+            Hud.Banner("FLORESTA VIVA", "colete madeira, plante a horta e mantenha o fogo aceso", 6f);
         }
 
         Vector3 SpawnPoint(int index)
@@ -109,6 +114,8 @@ namespace Floresta
             Rig.Look(new Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y")) * MouseSensitivity, Input.mouseScrollDelta.y);
             if (Input.GetKeyDown(KeyCode.V)) Rig.FirstPerson = !Rig.FirstPerson;
 
+            for (int k = 0; k < 4; k++) if (Input.GetKeyDown(KeyCode.Alpha1 + k)) selectedTool = k;
+
             // entrada local → comandos do jogador (no co-op, cada cliente manda o seu PlayerInput)
             var inp = new PlayerInput
             {
@@ -119,6 +126,10 @@ namespace Floresta
                 jump = Input.GetKeyDown(KeyCode.Space),
                 use = Input.GetMouseButton(0) && Cursor.lockState == CursorLockMode.Locked,
                 eat = Input.GetKeyDown(KeyCode.F),
+                tool = selectedTool,
+                nextSeed = Input.GetKeyDown(KeyCode.Q),
+                aimOrigin = Rig.cam.transform.position,
+                aimDir = Rig.cam.transform.forward,
             };
             var p = Player;
             p.FirstPerson = Rig.Blend > 0.7f;
@@ -141,6 +152,8 @@ namespace Floresta
             var camPos = Rig.cam.transform.position;
             Cycle.Update(dt, camPos);
             Fire.Update(dt, Cycle.Darkness);
+            Farm.Update(dt, Cycle.DayLength);
+            Farm.ShowMarker(p.alive ? p.AimCell : null, p.AimOk);
             Life.Update(camPos, Cycle.Darkness, Cycle.time);
             Flora.Draw(camPos);
             Director.Tick(Cycle.IsNight, Cycle.Darkness, Players, Rig.cam, dt);

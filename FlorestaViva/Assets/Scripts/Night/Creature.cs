@@ -15,6 +15,10 @@ namespace Floresta
         public float hp = 60;
         World world;
         Campfire fire;
+        Farm farm;
+        Plot raid;                       // planta que veio comer
+        public bool Eating { get; private set; }
+        public Vector3 Position => transform.position;
         State state = State.Stalk;
         float stateT, phase, attackCd, orbit, speedMul, fade = 0, whisperT;
         Vector3 fleeFrom;
@@ -23,13 +27,14 @@ namespace Floresta
         public bool Dead => state == State.Fade && fade <= 0;
         public float DistToPlayer { get; private set; } = 999;
 
-        public static Creature Spawn(World w, Campfire f, Vector3 p, int night)
+        public static Creature Spawn(World w, Campfire f, Farm farm, Vector3 p, int night, bool raider)
         {
             var go = new GameObject("Vulto");
             go.layer = Layers.Creature;
             go.transform.position = p;
             var c = go.AddComponent<Creature>();
-            c.world = w; c.fire = f;
+            c.world = w; c.fire = f; c.farm = farm;
+            if (raider && farm != null) c.raid = farm.UnprotectedCrop(p);
             c.rig = Creature.MakeRig(go.transform);
             var col = go.AddComponent<CapsuleCollider>();
             col.isTrigger = true; col.height = 2.6f; col.radius = 0.5f; col.center = new Vector3(0, 1.3f, 0);
@@ -91,7 +96,22 @@ namespace Floresta
             else if (fire.Lit && dFire < fire.SafeRadius + 3f) fire.Drain += 0.35f;   // suga a chama na borda da luz
 
             Vector3 goal; float speed;
-            if (target == null || !target.alive)
+            Eating = false;
+            if (raid != null && (raid.crop == null || (fire.Lit && (raid.pos - fire.Pos).magnitude < fire.SafeRadius))) raid = farm?.UnprotectedCrop(pos);
+            bool playerClose = target != null && target.alive && Flat(target.transform.position - pos).magnitude < 6f;
+            if (raid != null && playerClose && state != State.Flee) { raid = null; state = State.Charge; Audio.Play("screech", 0.6f, 1f); }
+            if (raid != null && state != State.Flee)
+            {
+                // vai até a plantação e come
+                DistToPlayer = target != null ? Flat(target.transform.position - pos).magnitude : 999;
+                goal = raid.pos; speed = 3.4f;
+                if (Flat(raid.pos - pos).magnitude < 1.3f)
+                {
+                    speed = 0; Eating = true;
+                    if (farm.Eat(raid, Time.deltaTime * 6f)) raid = null;
+                }
+            }
+            else if (target == null || !target.alive)
             {
                 // sem jogador: cerca a fogueira
                 DistToPlayer = 999;
@@ -149,14 +169,14 @@ namespace Floresta
                 pos += step;
             }
             // olha para onde vai; enquanto espreita, encara o jogador
-            var face = state == State.Stalk && target != null ? Flat(target.transform.position - pos) : dir;
+            var face = Eating && raid != null ? Flat(raid.pos - pos) : state == State.Stalk && target != null ? Flat(target.transform.position - pos) : dir;
             if (face.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(face.normalized), dt * 6);
             pos.y = Mathf.Max(world.Height(pos.x, pos.z), World.WaterLevel - 0.2f) + Mathf.Sin(phase * 0.3f) * 0.05f;
             transform.position = pos;
 
             float walk = Mathf.Clamp01(speed / 4f);
-            float swing = state == State.Attack ? Mathf.Clamp01(1 - stateT / 0.6f) : 0;
+            float swing = state == State.Attack ? Mathf.Clamp01(1 - stateT / 0.6f) : Eating ? Mathf.Abs(Mathf.Sin(phase * 0.8f)) * 0.6f : 0;
             rig.Animate(phase, state == State.Stalk && watched ? 0 : walk, swing, true);
         }
 

@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Floresta
 {
-    public enum Item { Madeira, Pedra, Frutinha, Cogumelo, Fibra, Flor }
+    public enum Item { Madeira, Pedra, Frutinha, Cogumelo, Fibra, Flor, SementeCenoura, SementeAbobora, Cenoura, Abobora }
 
     /// <summary>Árvore, pedra ou arbusto que pode ser coletado (machado/mão).</summary>
     public class Gatherable : MonoBehaviour

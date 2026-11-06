@@ -3,11 +3,11 @@
 ## Marco 1 — Mundo + dia/noite ✅ (primeira versão)
 Floresta gerada, coleta, ciclo dia/noite, Vultos à noite, fogueira como base, jogador em 1ª/3ª pessoa.
 
-## Marco 2 — Fazenda
-- Enxada (fibra + madeira) para arar a terra dentro da clareira.
-- Sementes vindas de frutinhas/flores; canteiros que crescem ao longo dos dias e precisam de água (balde no rio).
-- À noite os Vultos **atacam a plantação** além da fogueira — a defesa ganha um segundo alvo.
-- Cozinhar na fogueira (comida melhor que frutinha crua).
+## Marco 2 — Fazenda ✅ (primeira versão)
+- Ferramentas na mão (1–4): machado, enxada, sementes, regador.
+- Canteiros na clareira; cenoura e abóbora com 4 estágios; só crescem com a terra molhada; regador enche no rio.
+- À noite parte dos Vultos vai comer o que está fora da luz da fogueira.
+- **Falta:** cozinhar na fogueira (sopa de abóbora, cenoura assada), espantalho e cerca (vêm com o modo construção), poço perto da base, mais culturas (milho, girassol que ilumina à noite?).
 
 ## Marco 3 — Modo construção
 - Tecla B abre o modo: grade de encaixe, peças de madeira e pedra (piso, parede, porta, telhado, cerca, tocha).

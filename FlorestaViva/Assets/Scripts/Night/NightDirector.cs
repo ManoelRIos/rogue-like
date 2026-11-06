@@ -13,7 +13,10 @@ namespace Floresta
         readonly World world;
         readonly Flora flora;
         readonly Campfire fire;
+        public Farm farm;
         public readonly List<Creature> creatures = new();
+        float raidWarnT;
+        public bool CropsUnderAttack { get; private set; }
         int toSpawn, night;
         float spawnT, eyesT;
         readonly List<(Transform t, float life)> eyes = new();
@@ -76,6 +79,17 @@ namespace Floresta
             }
             Danger = Mathf.Clamp01(1 - (nearest - 4) / 26f);
 
+            // aviso: algo está comendo a plantação
+            CropsUnderAttack = false;
+            foreach (var c in creatures) if (c.Eating) CropsUnderAttack = true;
+            raidWarnT -= dt;
+            if (CropsUnderAttack && raidWarnT <= 0)
+            {
+                raidWarnT = 20;
+                Game.I?.Hud.Banner("A PLANTAÇÃO!", "algo está comendo a horta — espante com o machado ou aumente a fogueira", 4f);
+                Audio.Play("screech", 0.5f);
+            }
+
             // olhos no escuro (só ambientação)
             if (isNight && darkness > 0.7f && players.Count > 0)
             {
@@ -122,7 +136,8 @@ namespace Floresta
                 float dMin = float.MaxValue;
                 foreach (var p in players) dMin = Mathf.Min(dMin, (p.transform.position - s).magnitude);
                 if (dMin < 32 || dMin > 70 || world.InBase(s)) continue;
-                creatures.Add(Creature.Spawn(world, fire, s, night));
+                bool raider = farm != null && farm.UnprotectedCrop(s) != null && Random.value < 0.5f;
+                creatures.Add(Creature.Spawn(world, fire, farm, s, night, raider));
                 return true;
             }
             return false;

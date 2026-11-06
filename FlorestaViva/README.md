@@ -17,8 +17,10 @@ Sobrevivência cooperativa em 3D low-poly. **De dia** a floresta é aconchegante
 | WASD / Shift / Espaço | andar / correr / pular |
 | Mouse / roda | olhar / zoom da câmera |
 | **V** | alterna 3ª pessoa ↔ 1ª pessoa (transição suave) |
-| Clique (segurar) | cortar árvore, quebrar pedra, colher arbusto, pegar cogumelo, atacar Vulto |
-| **F** | comer (frutinhas; cogumelos enchem mais mas tiram um pouco de vida) |
+| **1 – 4** | ferramenta: machado, enxada, sementes, regador |
+| Clique (segurar) | usar a ferramenta: cortar, quebrar pedra, colher arbusto, arar, plantar, regar, colher a horta, atacar Vulto |
+| **Q** | troca a semente (cenoura ↔ abóbora) |
+| **F** | comer (escolhe a comida que não desperdiça: frutinha, cenoura, abóbora, cogumelo) |
 | **E** (perto da fogueira) | alimentar a fogueira com 1 madeira |
 | Esc | pausa + lista de controles |
 | **N** | *teste:* pula direto para o anoitecer / amanhecer |
@@ -33,9 +35,18 @@ Sobrevivência cooperativa em 3D low-poly. **De dia** a floresta é aconchegante
 - **Base**: fogueira com luz tremeluzente, faíscas, barraca, troncos para sentar, pilha de lenha, estacas marcando a clareira.
 - **Jogador** (Andarilho): vida, fome, inventário; ao morrer volta para a fogueira perdendo metade do que carregava.
 
+## Marco 2 — Fazenda
+
+- **Enxada** ara um canteiro na clareira (grade de 1,6 m, com marcador no chão mostrando onde vai arar; não deixa arar colado no fogo nem em cima da barraca).
+- **Sementes** de cenoura (cresce em ~2/3 de dia) e de abóbora (~1,5 dia). Você começa com 6 + 3; colher devolve 1–2 sementes e os arbustos às vezes soltam sementes silvestres.
+- **Regador** com 6 cargas, enche no rio (a trilha da clareira leva até lá). **A planta só cresce com a terra molhada**, e a terra seca em pouco mais de meio dia — regar vira a rotina da manhã.
+- 4 estágios visuais por planta (broto → folhas → fruto verde → madura). Canteiro escurece quando está molhado.
+- **À noite os Vultos atacam a horta**: parte deles vai direto nas plantas que estão **fora da luz da fogueira** e come até destruir. Aparece o aviso "A PLANTAÇÃO!". Para proteger: plante perto do fogo, mantenha a fogueira alta (o raio de luz cresce com a lenha) ou vá lá espantar com o machado.
+- O Andarilho troca a ferramenta na mão (machado, enxada, saco de sementes, regador).
+
 ## Próximos marcos
 
-Veja [Docs/ROTEIRO.md](Docs/ROTEIRO.md): fazenda (plantio + defesa da plantação), modo construção, veículo, aventuras pelo mapa (ruínas, baús, missões) e **co-op online** (até 4, host + código de convite).
+Veja [Docs/ROTEIRO.md](Docs/ROTEIRO.md): modo construção, veículo, aventuras pelo mapa (ruínas, baús, missões) e **co-op online** (até 4, host + código de convite).
 
 ## Estrutura
 
@@ -46,6 +57,7 @@ Assets/
   Scripts/Core/                Game (bootstrap e laço), Util (ruído, MeshBuilder, materiais)
   Scripts/World/               World (terreno/rio), Flora (plantas e coleta), DayNight, Life (pássaros, vagalumes)
   Scripts/Night/               Campfire (base), Creature (Vulto), NightDirector (ondas e "olhos no escuro")
+  Scripts/Farm/Farm.cs         canteiros, culturas (cenoura, abóbora), rega, crescimento e ataque noturno
   Scripts/Player/              Characters (modelos low-poly), PlayerController, CameraRig
   Scripts/UI/Hud.cs            interface
   Scripts/Audio/Audio.cs       sons sintetizados

@@ -20,13 +20,21 @@ namespace Floresta
             Item.Frutinha => "Frutinhas",
             Item.Cogumelo => "Cogumelos",
             Item.Fibra => "Fibra",
-            _ => "Flores",
+            Item.Flor => "Flores",
+            Item.SementeCenoura => "Sem. de cenoura",
+            Item.SementeAbobora => "Sem. de abóbora",
+            Item.Cenoura => "Cenouras",
+            _ => "Abóboras",
         };
 
-        static readonly Color[] ItemCol =
+        static Color ItemCol(Item i) => i switch
         {
-            Col.Hex("#a0703e"), Col.Hex("#9a9a9a"), Col.Hex("#d0304a"), Col.Hex("#d8c8a8"), Col.Hex("#8ab060"), Col.Hex("#e0a0d0"),
+            Item.Madeira => Col.Hex("#a0703e"), Item.Pedra => Col.Hex("#9a9a9a"), Item.Frutinha => Col.Hex("#d0304a"), Item.Cogumelo => Col.Hex("#d8c8a8"),
+            Item.Fibra => Col.Hex("#8ab060"), Item.Flor => Col.Hex("#e0a0d0"), Item.SementeCenoura => Col.Hex("#e8b060"), Item.SementeAbobora => Col.Hex("#f0e0a0"),
+            Item.Cenoura => Col.Hex("#f0802a"), _ => Col.Hex("#e0761e"),
         };
+
+        static readonly string[] ToolNames = { "Machado", "Enxada", "Sementes", "Regador" };
 
         public void Popup(string s)
         {
@@ -126,16 +134,39 @@ namespace Floresta
             Rect(new Rect(W - 198, 72, 168 * game.Fire.Fuel / Campfire.MaxFuel, 10), game.Fire.Fuel < 20 ? Col.Hex("#ff4020") : Col.Hex("#ff9a30"));
             Shadowed(new Rect(W - 198, 80, 180, 18), "fogueira", small);
 
-            // inventário
-            var items = (Item[])System.Enum.GetValues(typeof(Item));
-            float iw = 74, ix = W / 2 - items.Length * iw / 2;
-            for (int i = 0; i < items.Length; i++)
+            // ferramentas (1-4)
+            float iw = 92, ix = W / 2 - 4 * iw / 2;
+            var smallC = new GUIStyle(small) { alignment = TextAnchor.MiddleCenter };
+            for (int i = 0; i < 4; i++)
             {
-                var r = new Rect(ix + i * iw + 3, H - 64, iw - 6, 50);
-                Rect(r, new Color(0, 0, 0, 0.5f));
-                Rect(new Rect(r.x, r.y, r.width, 4), ItemCol[i]);
-                Shadowed(new Rect(r.x, r.y + 6, r.width, 22), p.inventory[items[i]].ToString(), center);
-                Shadowed(new Rect(r.x, r.y + 26, r.width, 20), Name(items[i]), new GUIStyle(small) { alignment = TextAnchor.MiddleCenter });
+                bool sel = (int)p.tool == i;
+                var r = new Rect(ix + i * iw + 3, H - 66, iw - 6, 54);
+                Rect(r, sel ? new Color(0.94f, 0.9f, 0.8f, 0.25f) : new Color(0, 0, 0, 0.5f));
+                if (sel) { Rect(new Rect(r.x, r.y, r.width, 3), Col.Hex("#f0a04b")); }
+                Shadowed(new Rect(r.x + 6, r.y + 4, 20, 18), (i + 1).ToString(), small, new Color(1, 1, 1, 0.6f));
+                Shadowed(new Rect(r.x, r.y + 8, r.width, 22), ToolNames[i], center);
+                string sub = i switch
+                {
+                    2 => $"{p.SeedCrop.name.ToLower()} ×{p.inventory[p.SeedCrop.seed]}",
+                    3 => $"água {p.water}/{PlayerController.WaterMax}",
+                    _ => i == 0 ? "cortar · lutar" : "arar",
+                };
+                Shadowed(new Rect(r.x, r.y + 30, r.width, 20), sub, smallC);
+            }
+            if (p.tool == Tool.Sementes) Shadowed(new Rect(0, H - 88, W, 20), "Q troca a semente", smallC, new Color(1, 1, 1, 0.7f));
+
+            // mochila: só o que você tem
+            float iy = H - 120;
+            var items = (Item[])System.Enum.GetValues(typeof(Item));
+            for (int i = items.Length - 1; i >= 0; i--)
+            {
+                int n = p.inventory[items[i]];
+                if (n <= 0) continue;
+                Rect(new Rect(W - 190, iy, 172, 22), new Color(0, 0, 0, 0.42f));
+                Rect(new Rect(W - 190, iy, 4, 22), ItemCol(items[i]));
+                Shadowed(new Rect(W - 180, iy + 1, 130, 20), Name(items[i]), small);
+                Shadowed(new Rect(W - 60, iy + 1, 40, 20), n.ToString(), new GUIStyle(small) { alignment = TextAnchor.UpperRight, fontStyle = FontStyle.Bold });
+                iy -= 24;
             }
 
             // mira (1ª pessoa) e dica de interação
@@ -143,6 +174,7 @@ namespace Floresta
             string prompt = p.TargetLabel;
             if (game.NearFire) prompt = game.Fire.Fuel < Campfire.MaxFuel - 1 ? "E: ALIMENTAR A FOGUEIRA (1 madeira)" : "A fogueira está forte";
             if (prompt != null) Shadowed(new Rect(0, H / 2 + 60, W, 24), prompt, center);
+            if (p.TargetInfo != null) Shadowed(new Rect(0, H / 2 + 84, W, 22), p.TargetInfo, new GUIStyle(small) { alignment = TextAnchor.MiddleCenter }, Col.Hex("#d8e8b0"));
 
             // mensagens de coleta
             for (int i = 0; i < popups.Count; i++)
@@ -174,12 +206,14 @@ namespace Floresta
                 string help =
                     "WASD  andar      SHIFT  correr      ESPAÇO  pular\n" +
                     "MOUSE  olhar      RODA  zoom      V  1ª / 3ª pessoa\n" +
-                    "CLIQUE  cortar / quebrar / colher / atacar\n" +
-                    "F  comer (frutinhas, cogumelos)      E  alimentar a fogueira\n" +
+                    "1 machado   2 enxada   3 sementes (Q troca)   4 regador\n" +
+                    "CLIQUE  usar a ferramenta: cortar, arar, plantar, regar, colher, atacar\n" +
+                    "F  comer      E  alimentar a fogueira      o regador enche no rio\n" +
                     "ESC  voltar ao jogo\n\n" +
                     "De dia a floresta é calma. À noite os Vultos saem da mata.\n" +
-                    "Mantenha a fogueira acesa: a luz dela é o que protege a base.";
-                Shadowed(new Rect(0, H * 0.18f + 70, W, 220), help, center);
+                    "Mantenha a fogueira acesa: a luz dela protege a base e a horta.\n" +
+                    "As plantas só crescem com a terra molhada.";
+                Shadowed(new Rect(0, H * 0.18f + 70, W, 260), help, center);
             }
         }
     }
