@@ -9,8 +9,8 @@ namespace Ecos
     /// </summary>
     public class Player
     {
-        public const float RollTime = 0.5f;
-        public const float RollIFrames = 0.38f;
+        public const float RollTime = 0.5f;      // salto de esquiva (agacha → salta → pousa)
+        public const float RollIFrames = 0.42f;
         public const float Speed = 5.4f;
 
         public int Index;                 // 0 = jogador local; >0 reservado para co-op
@@ -51,7 +51,7 @@ namespace Ecos
             gun = new GameObject("sprite").AddComponent<SpriteRenderer>();
             gun.transform.SetParent(gunPivot, false);
             gun.sharedMaterial = Materials.Sprite;
-            light = LightingSystem.Add(Vector3.zero, 7f, new Color(1f, 0.88f, 0.72f), 0.85f);
+            light = LightingSystem.Add(Vector3.zero, 5.5f, new Color(1f, 0.86f, 0.7f), 0.75f);
             RefreshGun();
         }
 
@@ -126,8 +126,9 @@ namespace Ecos
             if (roll != null)
             {
                 roll.t += dt;
+                // agacha rápido, depois salta longe e perde velocidade no pouso
                 float k = 1 - roll.t / RollTime;
-                float spd = 3 + 10.5f * Mathf.Pow(Mathf.Max(0, k), 0.7f);
+                float spd = roll.t < 0.05f ? 2f : 3 + 10.5f * Mathf.Pow(Mathf.Max(0, k), 0.7f);
                 G.Move(ref pos, roll.dir * spd * dt, r, false);
                 if (Random.value < 0.35f) G.Fx.Dust(pos, 1);
                 if (roll.t >= RollTime) { roll = null; rollCd = 0.08f; G.Fx.Dust(pos, 4); }
@@ -176,7 +177,7 @@ namespace Ecos
             var w = Weapon; var d = w.def;
             fireCd = 1f / d.rate;
             w.mag--;
-            var muzzle = pos + MathX.Dir(aim) * 0.65f;
+            var muzzle = pos + MathX.Dir(aim) * 0.75f;
             for (int i = 0; i < d.pellets; i++)
             {
                 float off = d.fan && d.pellets > 1 ? (i / (float)(d.pellets - 1) - 0.5f) * d.spread : (Random.value - 0.5f) * d.spread;
@@ -190,6 +191,7 @@ namespace Ecos
                 });
             }
             G.Fx.Muzzle(muzzle, 0.5f, d.color);
+            G.Fx.Casing(pos + MathX.Dir(aim + Mathf.PI * 0.5f) * 0.2f, aim);
             LightingSystem.Add(MathX.ToWorld(muzzle, 0.6f), 4f, d.color, 1.4f, 0.06f);
             Sfx.Play(d.sfx, 0.02f);
             kick = Mathf.Min(1, 0.4f + d.kick * 0.3f);
@@ -223,10 +225,15 @@ namespace Ecos
 
             if (roll != null)
             {
-                var an = SpriteLib.Get("player", "roll");
+                // salto no ar: escolhe a direção pelo vetor do salto
+                var rd = roll.dir;
+                string jd = Mathf.Abs(rd.x) >= 0.45f ? "side" : rd.y < 0 ? "up" : "down";
+                var an = SpriteLib.Get("player", "dodge_" + jd) ?? SpriteLib.Get("player", "roll");
                 view.SetSprite(an.At(roll.t));
-                view.Flip(roll.dir.x < 0);
-                h = Mathf.Sin(roll.t / RollTime * Mathf.PI) * 0.35f;   // salto: sombra fica no chão
+                view.Flip(jd == "side" && rd.x < 0);
+                float air = Mathf.Clamp01((roll.t - 0.06f) / 0.36f);
+                h = Mathf.Sin(air * Mathf.PI) * 0.6f;
+                view.SetShadowSize(0.9f * (1 - h * 0.45f));
                 gun.enabled = false;
             }
             else
@@ -234,6 +241,7 @@ namespace Ecos
                 var an = SpriteLib.Get("player", (moving ? "run_" : "idle_") + dir);
                 view.SetSprite(an.At(moving ? walkT : animT));
                 view.Flip(left && dir == "side");
+                view.SetShadowSize(0.9f);
                 gun.enabled = true;
             }
 
@@ -245,9 +253,9 @@ namespace Ecos
             view.Place(pos, h);
 
             // arma na mão, girando para a mira
-            gunPivot.localPosition = new Vector3(left ? -0.14f : 0.14f, 0.42f, up ? 0.05f : -0.05f);
+            gunPivot.localPosition = new Vector3(left ? -0.18f : 0.18f, 0.6f, up ? 0.05f : -0.05f);
             gunPivot.localRotation = Quaternion.Euler(0, 0, a * Mathf.Rad2Deg);
-            gun.transform.localPosition = new Vector3(0.12f - kick * 0.1f, 0, 0);
+            gun.transform.localPosition = new Vector3(0.16f - kick * 0.12f, 0, 0);
             gun.transform.localScale = new Vector3(1, left ? -1 : 1, 1);
 
             light.pos = MathX.ToWorld(pos, 1.6f) + new Vector3(0, 0, -0.4f);
@@ -255,7 +263,7 @@ namespace Ecos
 
         public bool Rolling => roll != null;
 
-        public void RecreateLight() => light = LightingSystem.Add(Vector3.zero, 7f, new Color(1f, 0.88f, 0.72f), 0.85f);
+        public void RecreateLight() => light = LightingSystem.Add(Vector3.zero, 5.5f, new Color(1f, 0.86f, 0.7f), 0.75f);
 
         public void Destroy() { view.Destroy(); LightingSystem.Remove(light); }
     }

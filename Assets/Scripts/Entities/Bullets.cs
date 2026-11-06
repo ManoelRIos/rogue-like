@@ -61,12 +61,12 @@ namespace Ecos
             b.view = Acquire();
             string sp = b.sprite ?? (b.enemy ? (b.size >= 1.6f ? "enemyBig" : "enemy") : "player");
             b.view.sr.sprite = SpriteLib.Frame("bullet_" + sp);
-            b.view.sr.color = b.enemy ? Color.white : b.color;
+            b.view.sr.color = b.enemy ? Color.white : (sp == "tracer" ? Color.Lerp(Color.white, b.color, 0.35f) : b.color);
             float s = b.enemy ? (sp == "enemyBig" ? b.size / 1.8f : b.size) : 1f;
             b.view.sr.transform.localScale = new Vector3(s, s, 1);
             b.view.glow.enabled = true;
-            b.view.glow.color = b.enemy ? new Color(1f, 0.25f, 0.4f, 0.9f) : b.color * 0.55f;
-            float gs = (b.enemy ? 1.4f : 0.9f) * b.size;
+            b.view.glow.color = b.enemy ? (sp == "waxflame" ? new Color(1f, 0.6f, 0.25f, 1f) : new Color(1f, 0.18f, 0.25f, 1f)) : b.color * 0.5f;
+            float gs = (b.enemy ? 1.7f : 0.8f) * b.size;
             b.view.glow.transform.localScale = new Vector3(gs, gs, 1);
             list.Add(b);
             Render(b);
@@ -183,7 +183,12 @@ namespace Ecos
                         }
                     }
                 }
-                if (!b.dead) Render(b);
+                if (!b.dead)
+                {
+                    Render(b);
+                    // rastro dos traçantes do jogador
+                    if (!b.enemy && b.age > 0.02f) G.Fx.Particle(b.pos - b.vel.normalized * 0.15f, Height, Vector2.zero, 0, b.color * 0.9f, 0.09f, 1.2f, 0);
+                }
             }
             for (int i = list.Count - 1; i >= 0; i--)
                 if (list[i].dead) { Release(list[i]); list.RemoveAt(i); }
@@ -196,7 +201,7 @@ namespace Ecos
             float x = Mathf.Round(b.pos.x / px) * px, y = Mathf.Round(b.pos.y / px) * px;
             v.go.transform.position = MathX.ToWorld(new Vector2(x, y), Height);
             // sprites direcionais (raio, flecha, foguete) apontam para a velocidade
-            float ang = (b.sprite == "laser" || b.sprite == "bolt" || b.sprite == "rocket") ? -MathX.Angle(b.vel) * Mathf.Rad2Deg : 0;
+            float ang = (b.sprite == "laser" || b.sprite == "bolt" || b.sprite == "rocket" || b.sprite == "tracer") ? -MathX.Angle(b.vel) * Mathf.Rad2Deg : 0;
             if (b.sprite == "star") ang = b.age * 600f;
             v.go.transform.rotation = Quaternion.Euler(0, PixelCamera.BillboardYaw, 0) * Quaternion.Euler(0, 0, ang);
         }

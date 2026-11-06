@@ -1,6 +1,6 @@
 # Sprites e como trocar a arte
 
-Toda a arte atual é original e gerada por `Tools/ArtGen/build.py` (Python + Pillow). O jogo lê tudo de
+Toda a arte atual é original e gerada por `Tools/ArtGen/build.py` (Python + Pillow). O Coveiro, o Cultista e a Viúva de Cera usam `vol.py`, que sombreia cada parte como um volume arredondado (rampas de 5 tons, contorno grosso). O jogo lê tudo de
 `Assets/Resources/Art/atlas.json`, então dá para trocar qualquer folha sem mexer no código.
 
 ## Escala
@@ -36,9 +36,10 @@ Toda a arte atual é original e gerada por `Tools/ArtGen/build.py` (Python + Pil
 
 | Folha | Animações |
 | --- | --- |
-| `player` | `idle_down`, `idle_side`, `idle_up`, `run_down`, `run_side`, `run_up`, `roll`, `death` (lado = virado para a direita; o jogo espelha) |
-| `enemy_<id>` | primeira animação da folha (movimento) — ids: gosma, cogumelo, caveira, morcego, lanterna, torreta, cristal, besouro |
-| `boss_<id>` | primeira animação — ids: reiGosma, sinoFantasma, golem, aranha, sacerdote |
+| `player` (30×30) | `idle_*`, `run_*`, `dodge_*` (salto de esquiva: agacha, salta, ar, ar, pousa, recupera) nas direções `down`, `side`, `up`; `hurt`; `death` (lado = virado para a direita; o jogo espelha) |
+| `enemy_<id>` | `idle`, `walk`, `aim` (aviso antes do tiro) e `death` (o corpo fica no chão). Folhas com uma animação só também funcionam. ids: **cultista**, gosma, cogumelo, caveira, morcego, lanterna, torreta, cristal, besouro |
+| `boss_<id>` | `idle`, `windup`, `attack`, versões `idle2/windup2/attack2` para a fase 2 e `death`. ids: **viuva**, reiGosma, sinoFantasma, golem, aranha, sacerdote |
+| adereços | `prop_candelabra`, `prop_candles`, `wall_torch` (animados, emitem luz), `prop_coffin`, `prop_statue`, `prop_cage`, `prop_banner`, `prop_chains`, `prop_bones`, `decal_blood0-2`, `decal_web` |
 | itens/efeitos | heart, heart_half, heart_empty, blank, coin, ammo, chest, chest_rare, pedestal, torch, hatch, crate, gate, shadow, fx_*, bullet_* |
 
 ## Tileset (128×128, células de 16 px)
@@ -50,6 +51,7 @@ Toda a arte atual é original e gerada por `Tools/ArtGen/build.py` (Python + Pil
 | 3–4 | topo da parede por máscara de vizinhos (bit 1 = norte, 2 = leste, 4 = sul, 8 = oeste) |
 | 5 | poço, borda do poço, tapete, tapete 2, sombra pontilhada, sombra lateral, lava, borda da lava |
 | 6 | decorações espalhadas no chão (com transparência) |
+| 7 | coluna 0: topo dos pilares |
 
 ## Usando seus próprios spritesheets
 

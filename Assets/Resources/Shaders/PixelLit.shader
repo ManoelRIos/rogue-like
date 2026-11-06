@@ -46,7 +46,7 @@ Shader "Ecos/PixelLit"
             float _EcosSteps;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; fixed4 color : COLOR; UNITY_VERTEX_INPUT_INSTANCE_ID };
-            struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; fixed4 color : COLOR; float3 wpos : TEXCOORD1; };
+            struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; fixed4 color : COLOR; float3 wpos : TEXCOORD1; float4 spos : TEXCOORD2; };
 
             v2f vert (appdata v)
             {
@@ -56,6 +56,7 @@ Shader "Ecos/PixelLit"
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 o.color = v.color * _Color;
                 o.wpos = mul(unity_ObjectToWorld, v.vertex).xyz;
+                o.spos = ComputeScreenPos(o.pos);
                 return o;
             }
 
@@ -75,9 +76,11 @@ Shader "Ecos/PixelLit"
                     float a = saturate(1.0 - dist / _EcosLightPos[k].w);
                     light += _EcosLightCol[k].rgb * _EcosLightCol[k].a * a * a;
                 }
-                // degraus de luz (visual pixelado)
+                // degraus de luz com pontilhado ordenado 2x2 (transição pixelada entre os tons)
                 float steps = max(_EcosSteps, 1.0);
-                light = floor(light * steps + 0.5) / steps;
+                float2 pix = floor(i.spos.xy / max(i.spos.w, 1e-5) * _ScreenParams.xy);
+                float bayer = fmod(pix.x, 2.0) * 0.5 + fmod(pix.y, 2.0) * 0.25 + fmod(pix.x + pix.y, 2.0) * 0.125;
+                light = floor(light * steps + bayer) / steps;
                 light = lerp(float3(1,1,1), light, _Lit);
                 light = max(light, _Emission.xxx);
 

@@ -121,6 +121,37 @@ namespace Ecos
             Glow(pos, BulletSystem.Height, 1.2f + size, c * 0.8f, 0.08f);
         }
 
+        /// <summary>Cápsula ejetada da arma: quica no chão e fica um tempo lá.</summary>
+        public void Casing(Vector2 pos, float aim)
+        {
+            var sp = SpriteLib.Frame("bullet_casing");
+            if (sp == null) return;
+            var p = Get(false);
+            p.sr.sprite = sp; p.sr.color = Color.white;
+            p.pos = pos; p.vel = MathX.Dir(aim + Mathf.PI * 0.5f + Random.Range(-0.5f, 0.5f)) * Random.Range(1.2f, 2.4f);
+            p.h = 0.55f; p.vh = Random.Range(1.8f, 2.8f); p.grav = 12f; p.life = p.max = 6f; p.size = 1; p.shrink = false;
+            p.spin = Random.Range(0, 360f);
+        }
+
+        /// <summary>Brasas e poeira flutuando no ar (atmosfera).</summary>
+        public void Ambient(Vector2 center, float dt, Color ember)
+        {
+            if (Random.value < dt * 6f)
+            {
+                var pos = center + new Vector2(Random.Range(-14f, 14f), Random.Range(-8f, 9f));
+                var p = Get(true);
+                p.sr.sprite = glow; p.sr.color = ember;
+                p.pos = pos; p.vel = new Vector2(Random.Range(-0.3f, 0.3f), Random.Range(-0.25f, -0.05f));
+                p.h = Random.Range(0.1f, 1.5f); p.vh = Random.Range(0.15f, 0.4f); p.grav = 0; p.life = p.max = Random.Range(2.5f, 5f); p.size = Random.Range(0.12f, 0.22f);
+            }
+            if (Random.value < dt * 4f)
+            {
+                var pos = center + new Vector2(Random.Range(-14f, 14f), Random.Range(-8f, 9f));
+                Particle(pos, Random.Range(0.2f, 1.8f), new Vector2(Random.Range(-0.15f, 0.15f), Random.Range(-0.1f, 0.1f)), 0.05f,
+                         new Color(0.45f, 0.4f, 0.42f), Random.Range(3f, 6f), 1f, 0);
+            }
+        }
+
         public void Explosion(Vector2 pos, float r)
         {
             Play("fx_explosion", pos, 0.5f, r * 0.7f);
@@ -138,8 +169,10 @@ namespace Ecos
                 if (p.life <= 0) { Kill(i); continue; }
                 p.vh -= p.grav * dt;
                 p.pos += p.vel * dt; p.h += p.vh * dt;
-                if (p.h < 0.02f && p.grav > 0) { p.h = 0.02f; p.vh *= -0.3f; p.vel *= 0.6f; }
+                if (p.h < 0.02f && p.grav > 0) { p.h = 0.02f; p.vh *= -0.35f; p.vel *= 0.55f; if (p.spin != 0) p.spin += 90; }
+                if (p.spin != 0 && p.h > 0.03f) p.spin += dt * 900f;
                 float k = p.shrink ? Mathf.Min(1, p.life / p.max * 2) : 1;
+                if (!p.shrink && p.anim == null && !p.additive && p.life < 0.6f) k = p.life / 0.6f;
                 if (p.anim != null) p.sr.sprite = p.anim.At(p.max - p.life);
                 float s = p.size * k;
                 p.go.transform.localScale = new Vector3(s, s, 1);

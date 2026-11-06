@@ -81,6 +81,20 @@ namespace Ecos
             sr.transform.localScale = new Vector3(scale, scale, 1);
         }
 
+        /// <summary>Estica um sprite para cobrir um retângulo (ex.: vinheta).</summary>
+        public void Stretch(Sprite s, float x, float y, float w, float h, Color c)
+        {
+            if (s == null) return;
+            var sr = Next();
+            sr.sprite = s;
+            sr.color = c;
+            var b = s.bounds;
+            float sx = w / (b.size.x * SpriteLib.PPU), sy = h / (b.size.y * SpriteLib.PPU);
+            var p = PixelCamera.I.HudPos(x, y);
+            sr.transform.position = p - new Vector3(b.min.x * sx, b.max.y * sy, 0);
+            sr.transform.localScale = new Vector3(sx, sy, 1);
+        }
+
         public static int Measure(string text, int scale = 1)
         {
             int cw = SpriteLib.Font != null ? SpriteLib.Font.cellW : 6;

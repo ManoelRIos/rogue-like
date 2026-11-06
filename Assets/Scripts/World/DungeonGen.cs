@@ -31,7 +31,10 @@ namespace Ecos
             p.x > x0 + margin && p.x < x0 + w - margin && p.y > y0 + margin && p.y < y0 + h - margin;
     }
 
-    public class Corridor { public int x0, y0, x1, y1; public int a, b; }
+    public class Corridor { public int x0, y0, x1, y1; public int a, b; public int zone; }
+
+    /// <summary>Adereço decorativo (castiçal, caixão, estandarte...). Sólidos bloqueiam o tile.</summary>
+    public class PropSpot { public Vector2Int tile; public string kind; public bool solid, onWall; public int zone; }
 
     public class Level
     {
@@ -42,6 +45,16 @@ namespace Ecos
         public List<Corridor> corridors = new();
         public Room start, boss;
         public List<Vector2> torches = new();
+        public List<PropSpot> props = new();
+        public HashSet<int> propTiles = new();   // tiles sólidos desenhados como adereço (sem bloco)
+        public short[] zone;                      // zona de visibilidade (sala ou corredor) por tile
+        public int ZoneCount;
+
+        public int ZoneAt(Vector2 p)
+        {
+            int x = Mathf.FloorToInt(p.x), y = Mathf.FloorToInt(p.y);
+            return InBounds(x, y) ? zone[y * W + x] : -1;
+        }
 
         public bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < W && y < H;
         public Tile this[int x, int y]
@@ -205,8 +218,81 @@ namespace Ecos
                     if (lvl[x, r.y0 - 1] == Tile.Void && Mathf.Abs(x - r.cx) > 2)
                         lvl.torches.Add(new Vector2(x + 0.5f, r.y0));
 
+            AssignZones(lvl);
+            PlaceProps(lvl, rng);
             lvl.start = start; lvl.boss = boss;
             return lvl;
+        }
+
+        /// <summary>Cada sala (com seu anel de paredes) e cada corredor viram uma zona de visibilidade.</summary>
+        static void AssignZones(Level l)
+        {
+            l.zone = new short[l.W * l.H];
+            for (int i = 0; i < l.zone.Length; i++) l.zone[i] = -1;
+            foreach (var r in l.rooms)
+                for (int y = r.y0 - 1; y <= r.y0 + r.h; y++)
+                    for (int x = r.x0 - 1; x <= r.x0 + r.w; x++)
+                        if (l.InBounds(x, y)) l.zone[y * l.W + x] = (short)r.id;
+            for (int i = 0; i < l.corridors.Count; i++)
+            {
+                var c = l.corridors[i];
+                c.zone = l.rooms.Count + i;
+                for (int y = c.y0 - 1; y <= c.y1 + 1; y++)
+                    for (int x = c.x0 - 1; x <= c.x1 + 1; x++)
+                        if (l.InBounds(x, y) && l.zone[y * l.W + x] < 0) l.zone[y * l.W + x] = (short)c.zone;
+            }
+            l.ZoneCount = l.rooms.Count + l.corridors.Count;
+        }
+
+        /// <summary>Castiçais nos cantos, caixões/estátuas junto à parede de cima, estandartes e correntes na parede.</summary>
+        static void PlaceProps(Level l, Rng rng)
+        {
+            foreach (var r in l.rooms)
+            {
+                bool start = r.type == RoomType.Start;
+                void Solid(int x, int y, string kind)
+                {
+                    if (l[x, y] != Tile.Floor || Mathf.Abs(x - r.cx) <= 2 || Mathf.Abs(y - r.cy) <= 2) return;
+                    l[x, y] = Tile.Pillar;
+                    l.propTiles.Add(y * l.W + x);
+                    l.props.Add(new PropSpot { tile = new Vector2Int(x, y), kind = kind, solid = true, zone = r.id });
+                }
+                // castiçais nos cantos de cima
+                Solid(r.x0, r.y0, "prop_candelabra");
+                Solid(r.x0 + r.w - 1, r.y0, "prop_candelabra");
+                if (!start && r.type != RoomType.Shop)
+                {
+                    // um ou dois caixões / estátuas / gaiolas encostados na parede de cima
+                    int n = rng.Int(1, 2);
+                    for (int k = 0; k < n; k++)
+                    {
+                        int x = rng.Int(r.x0 + 2, r.x0 + r.w - 3);
+                        Solid(x, r.y0, rng.Pick(new[] { "prop_coffin", "prop_statue", "prop_cage", "prop_coffin" }));
+                    }
+                    // castiçais embaixo também nas salas grandes
+                    if (r.w * r.h > 170) { Solid(r.x0, r.y0 + r.h - 1, "prop_candles"); Solid(r.x0 + r.w - 1, r.y0 + r.h - 1, "prop_candles"); }
+                }
+                // decoração na face da parede de cima (não bloqueia)
+                for (int x = r.x0 + 1; x < r.x0 + r.w - 1; x++)
+                {
+                    if (l[x, r.y0 - 1] != Tile.Void || Mathf.Abs(x - r.cx) <= 2) continue;
+                    bool nearTorch = false;
+                    foreach (var t in l.torches) if (Mathf.Abs(t.x - 0.5f - x) < 1.5f && Mathf.Abs(t.y - r.y0) < 0.1f) nearTorch = true;
+                    if (nearTorch || !rng.Chance(0.16f)) continue;
+                    l.props.Add(new PropSpot { tile = new Vector2Int(x, r.y0 - 1), kind = rng.Chance(0.6f) ? "prop_banner" : "prop_chains", onWall = true, zone = r.id });
+                    x += 2;
+                }
+                // decalques no chão
+                int dec = start ? 2 : rng.Int(3, 7);
+                for (int k = 0; k < dec; k++)
+                {
+                    int x = rng.Int(r.x0, r.x0 + r.w - 1), y = rng.Int(r.y0, r.y0 + r.h - 1);
+                    if (l[x, y] != Tile.Floor) continue;
+                    string kind = rng.Chance(0.5f) ? "decal_blood" + rng.Int(0, 2) : "prop_bones";
+                    l.props.Add(new PropSpot { tile = new Vector2Int(x, y), kind = kind, zone = r.id });
+                }
+                l.props.Add(new PropSpot { tile = new Vector2Int(r.x0, r.y0), kind = "decal_web", zone = r.id });
+            }
         }
 
         static void Clear(Level l, int x, int y) { if (l[x, y] != Tile.Floor && l.roomId[y * l.W + x] >= 0) l[x, y] = Tile.Floor; }

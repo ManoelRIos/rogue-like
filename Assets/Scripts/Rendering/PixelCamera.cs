@@ -30,6 +30,7 @@ namespace Ecos
         public Vector2 Focus;        // ponto seguido (coordenadas de jogo)
         public Vector2 Lead;         // deslocamento extra (mira)
         public float Zoom = 1f;      // 1 = normal; >1 mostra mais área
+        public Rect? Bounds;         // limite da sala atual (coordenadas de jogo, y para baixo)
         Vector2 cur;
         float shake;
         float yaw;
@@ -96,6 +97,14 @@ namespace Ecos
             if (Input.GetKeyDown(KeyCode.F2)) Mode = Mode == CameraMode.TwoPointFive ? CameraMode.ThreeD : CameraMode.TwoPointFive;
 
             var target = Focus + Lead;
+            if (Bounds.HasValue && Mode == CameraMode.TwoPointFive)
+            {
+                // câmera presa na sala: não mostra o que há além das paredes
+                var b = Bounds.Value;
+                float hw = RtW / SpriteLib.PPU / 2f, hh = RtH / SpriteLib.PPU / 2f;
+                target.x = b.width <= hw * 2 ? b.center.x : Mathf.Clamp(target.x, b.xMin + hw, b.xMax - hw);
+                target.y = b.height <= hh * 2 ? b.center.y : Mathf.Clamp(target.y, b.yMin + hh, b.yMax - hh);
+            }
             cur = Vector2.Lerp(cur, target, 1f - Mathf.Exp(-dt * 8f));
             Vector2 sh = shake > 0 ? Random.insideUnitCircle * shake * 0.3f : Vector2.zero;
             shake = Mathf.Max(0, shake - dt * 2.5f);

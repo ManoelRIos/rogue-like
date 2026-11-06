@@ -11,6 +11,8 @@ namespace Ecos
         public Color color;
         public int coinsMin, coinsMax;
         public float flyHeight = 0.45f;
+        public string gun;           // sprite de arma que gira para mirar (opcional)
+        public string bullet;        // sprite de bala próprio (opcional)
     }
 
     public static class EnemyDefs
@@ -18,6 +20,7 @@ namespace Ecos
         static Color C(string h) { ColorUtility.TryParseHtmlString(h, out var c); return c; }
         public static readonly Dictionary<string, EnemyDef> All = new()
         {
+            ["cultista"] = new EnemyDef { id = "cultista", name = "Cultista", hp = 20, speed = 1.8f, r = 0.38f, ai = "keep", keep = 5f, cdMin = 1.8f, cdMax = 2.6f, fire = "burst3", color = C("#7a1e24"), coinsMin = 1, coinsMax = 3, gun = "flintlock" },
             ["gosma"] = new EnemyDef { id = "gosma", name = "Gosma", hp = 15, speed = 1.9f, r = 0.4f, ai = "keep", keep = 4, cdMin = 1.7f, cdMax = 2.6f, fire = "single", color = C("#5fbf4a"), coinsMin = 0, coinsMax = 2 },
             ["cogumelo"] = new EnemyDef { id = "cogumelo", name = "Cogumelo", hp = 19, speed = 1.3f, r = 0.42f, ai = "keep", keep = 5, cdMin = 2.4f, cdMax = 3.2f, fire = "spread5", color = C("#c8413d"), coinsMin = 1, coinsMax = 2 },
             ["caveira"] = new EnemyDef { id = "caveira", name = "Caveira", hp = 24, speed = 2.3f, r = 0.38f, ai = "keep", keep = 5.5f, cdMin = 2f, cdMax = 2.8f, fire = "burst3", color = C("#e9e2cf"), coinsMin = 1, coinsMax = 3 },
@@ -42,6 +45,11 @@ namespace Ecos
         protected readonly List<(float t, System.Action fn)> queue = new();
         protected SpriteView view;
         protected Anim anim;
+        protected string sheet;
+        protected Transform gunPivot;
+        protected SpriteRenderer gunSr;
+        protected float gunKick;
+        public string bulletSprite;
         protected GameManager G => GameManager.I;
         public virtual bool IsBoss => false;
         public virtual Color Color => def.color;
@@ -67,8 +75,20 @@ namespace Ecos
             strafeT = Random.Range(1f, 3f);
             spiralA = Random.value * MathX.TAU;
             t = Random.value * 10;
+            this.sheet = sheet;
             anim = SpriteLib.Get(sheet);
             view = new SpriteView(sheet, Materials.Sprite, r * 2.4f);
+            if (def != null && def.gun != null)
+            {
+                gunPivot = new GameObject("arma").transform;
+                gunPivot.SetParent(view.Body, false);
+                gunSr = new GameObject("s").AddComponent<SpriteRenderer>();
+                gunSr.transform.SetParent(gunPivot, false);
+                gunSr.sharedMaterial = Materials.Sprite;
+                gunSr.sprite = SpriteLib.Weapon(def.gun);
+                gunSr.enabled = instant;
+            }
+            bulletSprite = def?.bullet;
             view.SetSprite(anim[0]);
             view.SpriteVisible(instant);
             view.Place(pos, 0);
@@ -94,7 +114,17 @@ namespace Ecos
             G.Fx.Burst(pos, 0.5f, IsBoss ? 20 : 6, Color.white, 3, 0.4f, 1.4f, 2);
             G.Fx.Glow(pos, 0.5f, IsBoss ? 7 : 2.4f, new Color(1f, 0.85f, 0.65f), 0.25f);
             G.Shake(IsBoss ? 0.8f : 0.12f);
-            view.Destroy();
+            var deathAnim = SpriteLib.Get(sheet, "death");
+            if (deathAnim != null)
+            {
+                // o corpo fica no chão (animação de morte e depois parado)
+                if (gunSr) gunSr.enabled = false;
+                view.SetFlash(0);
+                view.SetTint(Color.white);
+                if (view.Shadow) view.Shadow.enabled = false;
+                G.AddCorpse(view, deathAnim, pos);
+            }
+            else view.Destroy();
             G.OnEnemyKilled(this);
         }
 
@@ -104,12 +134,13 @@ namespace Ecos
         public void Shot(float angle, float speed, float size = 1, float accel = 0, float curve = 0, Vector2? from = null, float? off = null)
         {
             var o = from ?? pos;
-            float d = off ?? r * 0.8f;
+            float d = off ?? (gunSr ? 0.75f : r * 0.8f);
             G.Bullets.Spawn(new Bullet
             {
                 pos = o + MathX.Dir(angle) * d, vel = MathX.Dir(angle) * speed * bulletSpeed, enemy = true,
-                r = 0.14f * size, size = size, life = 6, accel = accel, curve = curve,
+                r = 0.14f * size, size = size, life = 6, accel = accel, curve = curve, sprite = size >= 1.6f ? null : bulletSprite,
             });
+            if (gunSr && from == null) { gunKick = 1; G.Fx.Muzzle(o + MathX.Dir(angle) * 0.75f, 0.3f, new Color(1f, 0.5f, 0.3f)); }
         }
 
         public Player Target() => G.NearestPlayer(pos);
@@ -169,7 +200,7 @@ namespace Ecos
             if (!active)
             {
                 spawnT -= dt;
-                if (spawnT <= 0) { active = true; view.SpriteVisible(true); flash = 1; }
+                if (spawnT <= 0) { active = true; view.SpriteVisible(true); flash = 1; if (gunSr) gunSr.enabled = true; }
                 UpdateVisual();
                 return;
             }
@@ -242,11 +273,26 @@ namespace Ecos
         protected virtual void UpdateVisual()
         {
             var P = Target();
-            view.Flip(P != null && P.pos.x < pos.x);
-            view.SetSprite(anim.At(t * (def != null && def.ai == "swoop" ? 1.6f : 1f)));
-            float wu = windup > 0 ? 0.35f + Mathf.Sin(t * 40) * 0.25f : 0;
+            bool left = P != null && P.pos.x < pos.x;
+            view.Flip(left);
+            // estados: mira (aviso antes do tiro) > andando > parado; folhas antigas usam a 1ª animação
+            Anim a = null;
+            if (windup > 0) a = SpriteLib.Get(sheet, "aim");
+            if (a == null && vel.sqrMagnitude > 0.15f) a = SpriteLib.Get(sheet, "walk");
+            if (a == null) a = SpriteLib.Get(sheet, "idle") ?? anim;
+            view.SetSprite(a.At(t * (def != null && def.ai == "swoop" ? 1.6f : 1f)));
+            float wu = windup > 0 && SpriteLib.Get(sheet, "aim") == null ? 0.35f + Mathf.Sin(t * 40) * 0.25f : 0;
             view.SetFlash(Mathf.Max(flash * 0.9f, wu));
             if (!active) view.SetShadowSize(r * 2.4f * (1 - Mathf.Max(0, spawnT) / 0.8f));
+            if (gunSr && P != null)
+            {
+                float ang = -MathX.Angle(pos, P.pos) * Mathf.Rad2Deg;
+                gunKick = Mathf.Max(0, gunKick - Time.deltaTime * 8);
+                gunPivot.localPosition = new Vector3(left ? -0.2f : 0.2f, 0.5f, -0.05f);
+                gunPivot.localRotation = Quaternion.Euler(0, 0, ang);
+                gunSr.transform.localPosition = new Vector3(0.1f - gunKick * 0.1f, 0, 0);
+                gunSr.transform.localScale = new Vector3(1, left ? -1 : 1, 1);
+            }
             view.Place(pos, Height);
         }
     }

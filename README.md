@@ -34,6 +34,21 @@ Se algo da arte aparecer borrado, use o menu **Ecos → Configurar projeto**.
 | Câmera 3D experimental | `F2` (no 3D, `Shift+Q/E` gira) |
 | Depuração (Editor) | `F1` modo deus · `F3` pular de andar |
 
+## Primeiro andar: Cripta das Velas
+
+O andar 1 já usa o novo padrão visual: o **Coveiro** (jogador), o **Cultista** (inimigo de máscara de porcelana,
+que mira com a pistola e deixa o corpo no chão) e a **Viúva de Cera** (chefe com 2 fases: o véu queima e
+revela o rosto derretido; ao morrer, derrete numa poça de cera). Os outros andares ainda usam a arte antiga
+e vão sendo trocados aos poucos.
+
+- **Só a sala atual aparece**: o mapa é dividido em zonas (salas e corredores). O que está além das portas
+  fica no escuro até você entrar, e a câmera fica presa dentro da sala.
+- **Esquiva é um salto**: agacha, salta (invulnerável no ar, com a sombra encolhendo) e pousa.
+- **Clima de terror**: luz ambiente baixa, tochas e castiçais com luz em degraus pontilhados, vinheta escura,
+  brasas e poeira no ar, sangue, ossos, teias, caixões, estátuas e gaiolas pelas salas.
+- **Balas**: brasas vermelhas com núcleo branco e brilho; traçantes com rastro para o jogador; cápsulas que
+  quicam e ficam no chão.
+
 ## Visual 2.5D
 
 - **Câmera ortográfica a 45° com projeção "cabinet"**: o chão aparece sem achatamento (1 tile = 16×16 px)

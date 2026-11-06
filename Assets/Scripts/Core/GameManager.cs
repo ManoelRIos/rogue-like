@@ -33,6 +33,9 @@ namespace Ecos
         public Rng Rng;
 
         readonly List<Pickup> pickups = new();
+        readonly List<(SpriteView view, Anim anim, float t, int zone)> corpses = new();
+        readonly HashSet<int> visibleZones = new();
+        int curZone = -1, prevZone = -1;
         readonly List<IInteractable> interactables = new();
         readonly HashSet<int> lockedTiles = new();
         Boss boss;
@@ -85,6 +88,9 @@ namespace Ecos
             foreach (var e in Enemies) if (!e.dead) e.Remove();
             foreach (var p in pickups) if (!p.dead) p.Remove();
             foreach (var i in interactables) i.Remove();
+            foreach (var c in corpses) c.view.Destroy();
+            corpses.Clear();
+            curZone = prevZone = -1;
             Enemies.Clear(); pickups.Clear(); interactables.Clear();
             Bullets.Reset(); Fx.Reset();
             lockedTiles.Clear();
@@ -115,6 +121,7 @@ namespace Ecos
             }
             ReattachPlayerLights();
             cam.SnapTo(Players[0].pos);
+            UpdateVisibility(true);
 
             foreach (var r in Level.rooms)
             {
@@ -341,6 +348,42 @@ namespace Ecos
             }
         }
 
+        public void AddCorpse(SpriteView view, Anim death, Vector2 pos)
+        {
+            corpses.Add((view, death, 0f, Level.ZoneAt(pos)));
+            if (corpses.Count > 40) { corpses[0].view.Destroy(); corpses.RemoveAt(0); }
+        }
+
+        /// <summary>
+        /// Só a sala (ou corredor) onde o jogador está fica visível; ao atravessar uma porta,
+        /// a zona anterior continua aparecendo até o jogador entrar de vez. A câmera fica presa na sala.
+        /// </summary>
+        void UpdateVisibility(bool force = false)
+        {
+            var P = Players[0];
+            int z = Level.ZoneAt(P.pos);
+            if (z < 0) z = curZone;
+            if (z != curZone || force)
+            {
+                if (z != curZone && curZone >= 0) prevZone = curZone;
+                curZone = z;
+                bool enteringRoom = z >= 0 && z < Level.rooms.Count && !force;
+                if (enteringRoom && !Level.rooms[z].visited) FlashScreen(Color.black, 0.85f);
+            }
+            visibleZones.Clear();
+            if (curZone >= 0) visibleZones.Add(curZone);
+            var room = curZone >= 0 && curZone < Level.rooms.Count ? Level.rooms[curZone] : null;
+            bool deep = room != null && room.Contains(P.pos, 1.2f);
+            if (!deep && prevZone >= 0) visibleZones.Add(prevZone);
+            Builder.ShowOnly(visibleZones);
+
+            if (room != null)
+                cam.Bounds = Rect.MinMaxRect(room.x0 - 1.5f, room.y0 - 3.5f, room.x0 + room.w + 1.5f, room.y0 + room.h + 1.8f);
+            else cam.Bounds = null;
+        }
+
+        public bool IsVisible(Vector2 p) => Builder.ZoneVisible(Level.ZoneAt(p));
+
         public void OnEnemyKilled(Enemy e)
         {
             Stats.kills++;
@@ -560,6 +603,16 @@ namespace Ecos
             Stats.time += dt;
             foreach (var p in Players) p.Tick(dt);
             UpdateRooms(dt);
+            UpdateVisibility();
+            for (int i = 0; i < corpses.Count; i++)
+            {
+                var c = corpses[i];
+                c.t += dt;
+                corpses[i] = c;
+                c.view.SetSprite(c.anim.At(c.t));
+                c.view.Visible = Builder.ZoneVisible(c.zone);
+            }
+            Fx.Ambient(cam.Focus, dt, new Color(1f, 0.55f, 0.25f, 0.8f));
             for (int i = 0; i < Enemies.Count; i++) if (!Enemies[i].dead) Enemies[i].Tick(dt);
             if (Enemies.Count > 40) Enemies.RemoveAll(e => e.dead);
             Bullets.Update(dt);
@@ -577,6 +630,8 @@ namespace Ecos
             }
             pickups.RemoveAll(p => p.dead);
             foreach (var it in interactables) if (it is ShopItem si && !si.display.dead) si.display.Tick(dt);
+            foreach (var pk in pickups) if (!pk.dead) pk.SetVisible(IsVisible(pk.pos));
+            foreach (var it in interactables) it.SetVisible(IsVisible(it.Pos));
 
             // interação
             var P0 = Players[0];

@@ -6,28 +6,36 @@ namespace Ecos
 {
     /// <summary>
     /// Constrói a geometria 3D do andar a partir do Level: chão, paredes com altura
-    /// (topo + faces), poços, decorações, caixas, portões e tochas.
+    /// (topo + faces), poços, decalques, adereços, caixas, portões e tochas.
+    /// Tudo é separado por ZONA (cada sala e cada corredor), para que só a área
+    /// em que o jogador está fique visível — o resto do mapa some na escuridão.
     /// Coordenadas: tile (x, y) ocupa mundo x∈[x,x+1], z∈[-y-1,-y].
     /// </summary>
     public class LevelBuilder
     {
         public const float WallH = 2f;      // parede alta (face frontal = 2 tiles na tela)
-        public const float LowH = 0.75f;    // parede de baixo da sala (não esconde o jogador)
+        public const float LowH = 0.75f;    // mureta de baixo da sala (não esconde o jogador)
         public const float PillarH = 1.5f;
 
         public GameObject Root;
         readonly Level L;
         readonly Texture2D atlas;
         readonly Rng rng;
+        readonly Color torchColor;
         readonly Dictionary<int, GameObject> crates = new();
         readonly Dictionary<int, float> crateHp = new();
-        readonly List<SpriteView> torchViews = new();
-        Material crateMat;
+        readonly List<(SpriteView view, Anim anim, float phase)> animated = new();
+        Material crateMat, worldMat;
 
-        // listas do mesh em construção
-        List<Vector3> v; List<Vector2> uv; List<int> tri;
+        // zonas
+        GameObject[] zoneRoots;
+        readonly List<LightingSystem.PointLight>[] zoneLights;
+        bool[] zoneVisible;
 
-        readonly Color torchColor;
+        // listas do mesh em construção (uma por zona)
+        class MeshData { public List<Vector3> v = new(); public List<Vector2> uv = new(); public List<int> tri = new(); }
+        MeshData[] meshes;
+        MeshData cur;
 
         public LevelBuilder(Level level, string tileset, Color torchColor)
         {
@@ -36,12 +44,53 @@ namespace Ecos
             atlas = SpriteLib.Tileset(tileset);
             rng = new Rng(level.Seed ^ 0x5bd1e995);
             Root = new GameObject("Level");
+            int zc = Mathf.Max(1, L.ZoneCount);
+            zoneRoots = new GameObject[zc];
+            zoneLights = new List<LightingSystem.PointLight>[zc];
+            zoneVisible = new bool[zc];
+            meshes = new MeshData[zc];
+            for (int i = 0; i < zc; i++)
+            {
+                zoneRoots[i] = new GameObject("Zona" + i);
+                zoneRoots[i].transform.SetParent(Root.transform, false);
+                zoneLights[i] = new List<LightingSystem.PointLight>();
+                zoneVisible[i] = true;
+                meshes[i] = new MeshData();
+            }
+            worldMat = Materials.World(atlas);
             BuildFloor();
             BuildWalls();
+            for (int i = 0; i < zc; i++) Commit(i);
             BuildCrates();
             BuildDoors();
             BuildTorches();
+            BuildProps();
+            ShowOnly(new HashSet<int>());
         }
+
+        // ------------------------------------------------------------------ zonas
+        int ZoneOf(int x, int y)
+        {
+            if (!L.InBounds(x, y)) return -1;
+            return L.zone[y * L.W + x];
+        }
+
+        Transform ZoneRoot(int z) => z >= 0 && z < zoneRoots.Length ? zoneRoots[z].transform : Root.transform;
+
+        /// <summary>Mostra apenas as zonas pedidas (as outras e suas luzes somem).</summary>
+        public void ShowOnly(HashSet<int> zones)
+        {
+            for (int i = 0; i < zoneRoots.Length; i++)
+            {
+                bool v = zones.Contains(i);
+                if (zoneVisible[i] == v) continue;
+                zoneVisible[i] = v;
+                zoneRoots[i].SetActive(v);
+                foreach (var l in zoneLights[i]) l.enabled = v;
+            }
+        }
+
+        public bool ZoneVisible(int z) => z >= 0 && z < zoneVisible.Length && zoneVisible[z];
 
         // ------------------------------------------------------------------ UV do atlas
         static Rect Cell(int col, int row, int rows = 1)
@@ -50,41 +99,44 @@ namespace Ecos
             return Rect.MinMaxRect(col * s + e, 1f - (row + rows) * s + e, (col + 1) * s - e, 1f - row * s - e);
         }
 
-        void Begin() { v = new List<Vector3>(); uv = new List<Vector2>(); tri = new List<int>(); }
+        void Use(int x, int y) { int z = ZoneOf(x, y); cur = z >= 0 ? meshes[z] : null; }
 
         void Quad(Vector3 tl, Vector3 tr, Vector3 br, Vector3 bl, Rect r, bool flipU = false)
         {
-            int i = v.Count;
-            v.Add(tl); v.Add(tr); v.Add(br); v.Add(bl);
+            if (cur == null) return;
+            int i = cur.v.Count;
+            cur.v.Add(tl); cur.v.Add(tr); cur.v.Add(br); cur.v.Add(bl);
             float u0 = flipU ? r.xMax : r.xMin, u1 = flipU ? r.xMin : r.xMax;
-            uv.Add(new Vector2(u0, r.yMax)); uv.Add(new Vector2(u1, r.yMax));
-            uv.Add(new Vector2(u1, r.yMin)); uv.Add(new Vector2(u0, r.yMin));
-            tri.Add(i); tri.Add(i + 1); tri.Add(i + 2);
-            tri.Add(i); tri.Add(i + 2); tri.Add(i + 3);
+            cur.uv.Add(new Vector2(u0, r.yMax)); cur.uv.Add(new Vector2(u1, r.yMax));
+            cur.uv.Add(new Vector2(u1, r.yMin)); cur.uv.Add(new Vector2(u0, r.yMin));
+            cur.tri.Add(i); cur.tri.Add(i + 1); cur.tri.Add(i + 2);
+            cur.tri.Add(i); cur.tri.Add(i + 2); cur.tri.Add(i + 3);
         }
 
-        GameObject Commit(string name, Material mat)
+        void Commit(int zone)
         {
-            var mesh = new Mesh { name = name, indexFormat = IndexFormat.UInt32 };
-            mesh.SetVertices(v); mesh.SetUVs(0, uv); mesh.SetTriangles(tri, 0);
+            var d = meshes[zone];
+            if (d.v.Count == 0) return;
+            var mesh = new Mesh { name = "Zona" + zone, indexFormat = IndexFormat.UInt32 };
+            mesh.SetVertices(d.v); mesh.SetUVs(0, d.uv); mesh.SetTriangles(d.tri, 0);
             mesh.RecalculateNormals(); mesh.RecalculateBounds();
-            var go = new GameObject(name);
-            go.transform.SetParent(Root.transform, false);
+            var go = new GameObject("geometria");
+            go.transform.SetParent(zoneRoots[zone].transform, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = mat;
+            mr.sharedMaterial = worldMat;
             mr.shadowCastingMode = ShadowCastingMode.Off;
             mr.receiveShadows = false;
-            return go;
         }
 
         bool Walk(int x, int y) => Level.Walkable(L[x, y]);
-        bool Solid(int x, int y) { var t = L[x, y]; return t == Tile.Void || t == Tile.Pillar; }
+        bool Solid(int x, int y) { var t = L[x, y]; return t == Tile.Void || (t == Tile.Pillar && !IsProp(x, y)); }
+        bool IsProp(int x, int y) => L.InBounds(x, y) && L.propTiles.Contains(y * L.W + x);
 
         bool IsWallBlock(int x, int y)
         {
             if (!Solid(x, y)) return false;
-            for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) if (Walk(x + dx, y + dy)) return true;
+            for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) if (Walk(x + dx, y + dy) || IsProp(x + dx, y + dy)) return true;
             return false;
         }
 
@@ -92,18 +144,18 @@ namespace Ecos
         {
             if (!IsWallBlock(x, y)) return 0;
             if (L[x, y] == Tile.Pillar) return PillarH;
-            return Walk(x, y - 1) ? LowH : WallH;
+            return (Walk(x, y - 1) || IsProp(x, y - 1)) ? LowH : WallH;
         }
 
         // ------------------------------------------------------------------ chão
         void BuildFloor()
         {
-            Begin();
             for (int y = 0; y < L.H; y++)
                 for (int x = 0; x < L.W; x++)
                 {
                     var t = L[x, y];
-                    if (!Level.Walkable(t)) continue;
+                    if (!Level.Walkable(t) && !IsProp(x, y)) continue;
+                    Use(x, y);
                     float h = t == Tile.Pit ? -0.02f : 0f;
                     Vector3 tl = new(x, h, -y), tr = new(x + 1, h, -y), br = new(x + 1, h, -y - 1), bl = new(x, h, -y - 1);
                     Rect r;
@@ -111,62 +163,50 @@ namespace Ecos
                     else
                     {
                         int hsh = (x * 73856093) ^ (y * 19349663);
-                        int var = rng.Chance(0.82f) ? ((hsh >> 3) & 3) : 4 + ((hsh >> 5) & 3);
+                        int var = rng.Chance(0.8f) ? ((hsh >> 3) & 3) : 4 + ((hsh >> 5) & 3);
                         r = Cell(var, 0);
                     }
                     Quad(tl, tr, br, bl, r);
-
                     if (t == Tile.Pit) continue;
-                    // sombra pontilhada na base das paredes de cima e laterais
-                    if (Solid(x, y - 1)) Quad(tl + Vector3.up * 0.003f, tr + Vector3.up * 0.003f, br + Vector3.up * 0.003f, bl + Vector3.up * 0.003f, Cell(4, 5));
-                    if (Solid(x - 1, y)) Quad(tl + Vector3.up * 0.004f, tr + Vector3.up * 0.004f, br + Vector3.up * 0.004f, bl + Vector3.up * 0.004f, Cell(5, 5));
-                    if (Solid(x + 1, y)) Quad(tl + Vector3.up * 0.004f, tr + Vector3.up * 0.004f, br + Vector3.up * 0.004f, bl + Vector3.up * 0.004f, Cell(5, 5), true);
-                    // decorações espalhadas dentro das salas
-                    if (L.roomId[y * L.W + x] >= 0 && t == Tile.Floor && rng.Chance(0.07f))
+                    var up = Vector3.up * 0.003f;
+                    if (Solid(x, y - 1)) Quad(tl + up, tr + up, br + up, bl + up, Cell(4, 5));
+                    if (Solid(x - 1, y)) Quad(tl + up, tr + up, br + up, bl + up, Cell(5, 5));
+                    if (Solid(x + 1, y)) Quad(tl + up, tr + up, br + up, bl + up, Cell(5, 5), true);
+                    if (L.roomId[y * L.W + x] >= 0 && t == Tile.Floor && rng.Chance(0.06f))
                     {
-                        var up = Vector3.up * 0.002f;
-                        Quad(tl + up, tr + up, br + up, bl + up, Cell(rng.Int(0, 7), 6), rng.Chance(0.5f));
+                        var u2 = Vector3.up * 0.002f;
+                        Quad(tl + u2, tr + u2, br + u2, bl + u2, Cell(rng.Int(0, 7), 6), rng.Chance(0.5f));
                     }
                 }
-            // tapete na loja e círculos no início/chefe ficam por conta das decorações
-            Commit("Floor", Materials.World(atlas));
         }
 
         // ------------------------------------------------------------------ paredes
         void BuildWalls()
         {
-            Begin();
             for (int y = 0; y < L.H; y++)
                 for (int x = 0; x < L.W; x++)
                 {
                     if (!IsWallBlock(x, y)) continue;
+                    Use(x, y);
                     float H = WallHeight(x, y);
                     float x0 = x, x1 = x + 1, zN = -y, zS = -y - 1;
-
-                    // topo com borda clara onde não há outra parede
                     int mask = 0;
                     if (!IsWallBlock(x, y - 1)) mask |= 1;
                     if (!IsWallBlock(x + 1, y)) mask |= 2;
                     if (!IsWallBlock(x, y + 1)) mask |= 4;
                     if (!IsWallBlock(x - 1, y)) mask |= 8;
-                    Quad(new Vector3(x0, H, zN), new Vector3(x1, H, zN), new Vector3(x1, H, zS), new Vector3(x0, H, zS), Cell(mask % 8, 3 + mask / 8));
+                    var top = L[x, y] == Tile.Pillar ? Cell(0, 7) : Cell(mask % 8, 3 + mask / 8);
+                    Quad(new Vector3(x0, H, zN), new Vector3(x1, H, zN), new Vector3(x1, H, zS), new Vector3(x0, H, zS), top);
 
-                    // face sul (a que a câmera vê): do topo do vizinho até o topo desta parede
                     float hs = WallHeight(x, y + 1);
-                    if (hs < H)
-                    {
-                        int var = FaceVariant(x, y);
-                        Face(new Vector3(x0, 0, zS), new Vector3(x1, 0, zS), hs, H, var, false);
-                    }
-                    // demais faces (só aparecem no modo de câmera 3D)
+                    if (hs < H) Face(new Vector3(x0, 0, zS), new Vector3(x1, 0, zS), hs, H, FaceVariant(x, y));
                     float hn = WallHeight(x, y - 1);
-                    if (hn < H) Face(new Vector3(x1, 0, zN), new Vector3(x0, 0, zN), hn, H, 0, false);
+                    if (hn < H) Face(new Vector3(x1, 0, zN), new Vector3(x0, 0, zN), hn, H, 0);
                     float he = WallHeight(x + 1, y);
-                    if (he < H) Face(new Vector3(x1, 0, zS), new Vector3(x1, 0, zN), he, H, 1, false);
+                    if (he < H) Face(new Vector3(x1, 0, zS), new Vector3(x1, 0, zN), he, H, 1);
                     float hw = WallHeight(x - 1, y);
-                    if (hw < H) Face(new Vector3(x0, 0, zN), new Vector3(x0, 0, zS), hw, H, 2, false);
+                    if (hw < H) Face(new Vector3(x0, 0, zN), new Vector3(x0, 0, zS), hw, H, 2);
                 }
-            Commit("Walls", Materials.World(atlas));
         }
 
         int FaceVariant(int x, int y)
@@ -174,23 +214,20 @@ namespace Ecos
             bool roomWall = Walk(x, y + 1) && L.roomId[(y + 1) * L.W + x] >= 0 && L[x, y] == Tile.Void;
             int h = (x * 92837111) ^ (y * 689287499);
             float r = ((h >> 4) & 1023) / 1023f;
-            if (roomWall && r < 0.05f) return 5;   // estandarte
-            if (roomWall && r < 0.09f) return 6;   // grade
-            if (roomWall && r < 0.12f) return 7;   // nicho
-            if (r < 0.2f) return 4;                // rachada
+            if (roomWall && r < 0.05f) return 5;   // nicho com vela
+            if (roomWall && r < 0.10f) return 6;   // grade
+            if (roomWall && r < 0.14f) return 7;   // nicho com caveira
+            if (r < 0.22f) return 4;               // rachada com sangue
             return (h >> 12) & 3;
         }
 
-        /// <summary>Face vertical de a→b (de baixo) entre as alturas h0 e h1; textura de 2 tiles de altura.</summary>
-        void Face(Vector3 a, Vector3 b, float h0, float h1, int variant, bool flip)
+        void Face(Vector3 a, Vector3 b, float h0, float h1, int variant)
         {
-            var full = Cell(variant, 1, 2); // 16x32
+            var full = Cell(variant, 1, 2);
             float vb = full.yMin, vt = full.yMax;
-            // o topo da textura (borda clara) fica sempre no topo da parede
-            float top = vt;
-            float bottom = top - (h1 - h0) / WallH * (vt - vb);
-            var r = Rect.MinMaxRect(full.xMin, Mathf.Max(vb, bottom), full.xMax, top);
-            Quad(a + Vector3.up * h1, b + Vector3.up * h1, b + Vector3.up * h0, a + Vector3.up * h0, r, flip);
+            float bottom = vt - (h1 - h0) / WallH * (vt - vb);
+            var r = Rect.MinMaxRect(full.xMin, Mathf.Max(vb, bottom), full.xMax, vt);
+            Quad(a + Vector3.up * h1, b + Vector3.up * h1, b + Vector3.up * h0, a + Vector3.up * h0, r);
         }
 
         // ------------------------------------------------------------------ caixas
@@ -205,7 +242,7 @@ namespace Ecos
                     var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     Object.Destroy(go.GetComponent<Collider>());
                     go.name = "Caixa";
-                    go.transform.SetParent(Root.transform, false);
+                    go.transform.SetParent(ZoneRoot(ZoneOf(x, y)), false);
                     go.transform.position = new Vector3(x + 0.5f, 0.45f, -y - 0.5f);
                     go.transform.localScale = new Vector3(0.9f, 0.9f, 0.9f);
                     go.GetComponent<MeshRenderer>().sharedMaterial = crateMat;
@@ -216,7 +253,6 @@ namespace Ecos
 
         public bool IsCrate(int x, int y) => crates.ContainsKey(y * L.W + x);
 
-        /// <summary>Aplica dano numa caixa; retorna true se ela quebrou.</summary>
         public bool DamageCrate(int x, int y, float dmg)
         {
             int k = y * L.W + x;
@@ -236,28 +272,79 @@ namespace Ecos
             foreach (var r in L.rooms)
             {
                 if (r.type != RoomType.Combat && r.type != RoomType.Boss) continue;
-                foreach (var d in r.doors) d.gate = new GateView(d, Root.transform);
+                foreach (var d in r.doors) d.gate = new GateView(d, ZoneRoot(r.id));
             }
         }
 
-        // ------------------------------------------------------------------ tochas
+        // ------------------------------------------------------------------ tochas e adereços
+        void AddLight(int zone, Vector3 p, float radius, Color c, float intensity)
+        {
+            var l = LightingSystem.Add(p, radius, c, intensity, -1, 1f);
+            if (zone >= 0 && zone < zoneLights.Length) zoneLights[zone].Add(l);
+        }
+
         void BuildTorches()
         {
-            var anim = SpriteLib.Get("torch");
+            var anim = SpriteLib.Get("wall_torch") ?? SpriteLib.Get("torch");
             foreach (var t in L.torches)
             {
-                var sv = new SpriteView("Tocha", Materials.SpriteBright, 0, Root.transform);
+                int z = ZoneOf(Mathf.FloorToInt(t.x), Mathf.FloorToInt(t.y) - 1);
+                var sv = new SpriteView("Tocha", Materials.SpriteBright, 0, ZoneRoot(z));
                 sv.SetSprite(anim[0]);
-                sv.Place(new Vector2(t.x, t.y + 0.03f), 0.85f);
-                torchViews.Add(sv);
-                LightingSystem.Add(new Vector3(t.x, 1.4f, -t.y - 0.6f), 6.5f, torchColor, 1.1f, -1, 1f);
+                sv.Place(new Vector2(t.x, t.y + 0.03f), 0.75f);
+                animated.Add((sv, anim, Random.value * 3));
+                AddLight(z, new Vector3(t.x, 1.5f, -t.y - 0.7f), 7.5f, torchColor, 1.35f);
+            }
+        }
+
+        void BuildProps()
+        {
+            foreach (var p in L.props)
+            {
+                string kind = p.kind;
+                var an = SpriteLib.Get(kind);
+                if (an == null) continue;
+                var parent = ZoneRoot(p.zone);
+                bool decal = kind.StartsWith("decal_");
+                bool burning = kind == "prop_candelabra" || kind == "prop_candles";
+                var center = new Vector2(p.tile.x + 0.5f, p.tile.y + 0.5f);
+                if (decal)
+                {
+                    // decalque deitado no chão
+                    var sr = new GameObject(kind).AddComponent<SpriteRenderer>();
+                    sr.transform.SetParent(parent, false);
+                    sr.sprite = an[0];
+                    sr.sharedMaterial = Materials.Sprite;
+                    sr.transform.rotation = Quaternion.Euler(90, 0, 0);
+                    var pos = kind == "decal_web" ? new Vector2(p.tile.x, p.tile.y) : center + new Vector2(rng.Range(-0.3f, 0.3f), rng.Range(-0.3f, 0.3f));
+                    sr.transform.position = MathX.ToWorld(pos, 0.004f);
+                    sr.flipX = rng.Chance(0.5f) && kind != "decal_web";
+                    continue;
+                }
+                var sv = new SpriteView(kind, burning ? Materials.SpriteBright : Materials.Sprite, p.solid ? 0.9f : 0, parent);
+                sv.SetSprite(an[0]);
+                if (p.onWall)
+                {
+                    // pendurado na face da parede de cima
+                    sv.Place(new Vector2(center.x, p.tile.y + 1 + 0.02f), 0.3f);
+                }
+                else
+                {
+                    // encostado na parede (caixões/estátuas) ou no centro do tile
+                    float y = p.solid && kind != "prop_candles" ? p.tile.y + 0.62f : center.y;
+                    sv.Place(new Vector2(center.x, y), 0);
+                    sv.Flip(kind != "prop_coffin" && rng.Chance(0.5f));
+                }
+                if (an.frames.Length > 1) animated.Add((sv, an, Random.value * 3));
+                if (burning)
+                    AddLight(p.zone, MathX.ToWorld(center, kind == "prop_candelabra" ? 2.0f : 0.8f), kind == "prop_candelabra" ? 6.5f : 4.5f,
+                             new Color(1f, 0.72f, 0.38f), kind == "prop_candelabra" ? 1.25f : 0.9f);
             }
         }
 
         public void Update(float time)
         {
-            var anim = SpriteLib.Get("torch");
-            for (int i = 0; i < torchViews.Count; i++) torchViews[i].SetSprite(anim.At(time + i * 0.37f));
+            foreach (var (view, anim, phase) in animated) view.SetSprite(anim.At(time + phase));
             foreach (var r in L.rooms) foreach (var d in r.doors) d.gate?.Update(Time.deltaTime);
         }
 
@@ -281,7 +368,6 @@ namespace Ecos
             {
                 var a = d.tiles[0];
                 var sr = MakePart(full);
-                // fica na linha da parede, centrado nos 3 tiles
                 sr.transform.localPosition = new Vector3(a.x + 1.5f, 0, -(a.y + 0.5f));
             }
             else

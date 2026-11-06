@@ -74,13 +74,20 @@ def render(theme='masmorra', out='preview.png', scale=3, seed=3):
     def put_sprite(im, gx, gy, h=0, shadow=True):
         sprites.append((gy, im, gx, gy, h, shadow))
 
-    pl = load('Sheets/player.png').crop((0, 0, 24, 26))
+    pl = load('Sheets/player.png').crop((0, 30, 30, 60))
     put_sprite(pl, 8.5, 6.6)
-    for name, gx, gy, fw, fh in (('gosma', 4.5, 2.5, 20, 18), ('caveira', 12.5, 3.2, 18, 26), ('cogumelo', 5.5, 10.5, 18, 22),
-                                 ('morcego', 12, 10.4, 24, 16)):
-        im = load(f'Sheets/enemy_{name}.png').crop((0, 0, fw, fh))
-        put_sprite(im, gx, gy, 0.7 if name == 'morcego' else 0)
-    gun = load('Weapons/escopeta.png')
+    cu = load('Sheets/enemy_cultista.png')
+    for i, (gx, gy) in enumerate(((4.5, 2.6), (12.5, 3.2), (5.5, 10.5))):
+        put_sprite(cu.crop((24 * i, 0, 24 * i + 24, 28)), gx, gy)
+    vi = load('Sheets/boss_viuva.png').crop((0, 0, 64, 72))
+    put_sprite(vi, 12.5, 10.6)
+    cand = load('Sheets/prop_candelabra.png').crop((0, 0, 16, 34))
+    put_sprite(cand, 1.6, 1.4, 0, False); put_sprite(cand, 15.4, 1.4, 0, False)
+    put_sprite(load('Sheets/prop_coffin.png'), 3.5, 1.2, 0, False)
+    put_sprite(load('Sheets/prop_statue.png'), 13.5, 1.2, 0, False)
+    put_sprite(load('Sheets/prop_bones.png'), 10.5, 11.5, 0, False)
+    gun = load('Weapons/pistola.png')
+    banner = load('Sheets/prop_banner.png'); torch = load('Sheets/wall_torch.png').crop((0, 0, 12, 22))
 
     # paredes e sprites, de trás (norte) para frente (sul)
     for y in range(H):
@@ -103,6 +110,11 @@ def render(theme='masmorra', out='preview.png', scale=3, seed=3):
             img.alpha_composite(cell(mask % 8, 3 + mask // 8), (px, py - ph))
             if ROOM[y][x] == '#' and 0 < x < W - 1 and 0 < y < H - 1:
                 pass
+        if y == 0:
+            for bx in (6, 10):
+                img.alpha_composite(banner, (bx * 16 + 1, TOP - 30))
+            for tx in (2, 14, 8):
+                img.alpha_composite(torch, (tx * 16 + 2, TOP - 28))
         # sprites desta linha
         for s in sorted([s for s in sprites if int(s[0]) == y], key=lambda s: s[0]):
             _, im, gx, gy, h, shadow = s
@@ -111,8 +123,22 @@ def render(theme='masmorra', out='preview.png', scale=3, seed=3):
                 img.alpha_composite(Image.blend(Image.new('RGBA', sh.size, (0, 0, 0, 0)), sh, 0.45), (fx - 8, fy - 4))
             img.alpha_composite(im, (fx - im.width // 2, fy - im.height - int(h * 16)))
             if im is pl:
-                img.alpha_composite(gun, (fx + 1, fy - 14))
-    # pilares (altura 1.5) desenhados por cima, linha a linha
+                img.alpha_composite(gun, (fx + 2, fy - 15))
+    # luz estilizada: escurece tudo e ilumina em volta das fontes de luz (em degraus)
+    import math
+    lights = [(1.6 * 16 + 8, 1.4 * 16 + TOP - 30, 90), (15.4 * 16 + 8, 1.4 * 16 + TOP - 30, 90), (2 * 16 + 8, TOP - 16, 70),
+              (14 * 16 + 8, TOP - 16, 70), (8 * 16 + 8, TOP - 16, 70), (8.5 * 16, 6.6 * 16 + TOP - 10, 60), (12.5 * 16, 10.6 * 16 + TOP - 60, 80)]
+    px = img.load()
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            L = 0.30
+            for lx, ly, rad in lights:
+                d = math.hypot(x - lx, (y - ly) * 1.2) / rad
+                if d < 1:
+                    L += (1 - d) ** 2 * 1.1
+            L = min(1.25, math.floor(L * 6 + 0.5) / 6)
+            px[x, y] = (min(255, int(r * L * 1.05)), min(255, int(g * L * 0.92)), min(255, int(b * L * 0.8)), a)
     img = img.resize((img.width * scale, img.height * scale), Image.NEAREST)
     os.makedirs(os.path.join(ROOT, 'Docs'), exist_ok=True)
     img.save(os.path.join(ROOT, 'Docs', out))

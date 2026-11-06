@@ -10,6 +10,8 @@ namespace Ecos
         public bool fly;
         public Color color;
         public string[] attacks;
+        public string bullet;      // sprite das balas (opcional)
+        public bool glow;          // carrega luz própria (velas)
     }
 
     public static class BossDefs
@@ -17,6 +19,8 @@ namespace Ecos
         static Color C(string h) { ColorUtility.TryParseHtmlString(h, out var c); return c; }
         public static readonly Dictionary<string, BossDef> All = new()
         {
+            ["viuva"] = new BossDef { id = "viuva", name = "A Viúva de Cera", hp = 620, r = 1.0f, speed = 1.3f, minion = "cultista", color = C("#e2c896"),
+                bullet = "waxflame", glow = true, attacks = new[] { "fan", "bell", "rain", "spiral", "summon", "teleport", "wave", "fan" } },
             ["reiGosma"] = new BossDef { id = "reiGosma", name = "Rei Gosma", hp = 560, r = 1.0f, speed = 1.4f, minion = "gosma", color = C("#62c44a"), attacks = new[] { "fan", "ring", "hop", "summon", "hop", "fan" } },
             ["sinoFantasma"] = new BossDef { id = "sinoFantasma", name = "Sino Fantasma", hp = 700, r = 0.95f, speed = 1.6f, fly = true, minion = "lanterna", color = C("#c9bfe8"), attacks = new[] { "spiral", "bell", "teleport", "wave", "bell" } },
             ["golem"] = new BossDef { id = "golem", name = "Golem da Forja", hp = 880, r = 1.05f, speed = 1.2f, color = C("#7c7266"), attacks = new[] { "charge", "shotgun", "slam", "bigshot", "charge" } },
@@ -34,7 +38,8 @@ namespace Ecos
         public override string Name => bdef.name;
         public bool Phase2 => hp < maxHp * 0.5f;
 
-        float intro = 1.6f, idle = 1f, alpha = 1;
+        float intro = 1.6f, idle = 1f, alpha = 1, pre;
+        LightingSystem.PointLight light;
         int attackIdx;
         readonly List<string> order;
         AttackState atk;
@@ -53,6 +58,8 @@ namespace Ecos
             Init(p, floor, bdef.hp * (1 + floor * 0.12f), bdef.r, bdef.fly, "boss_" + type, true);
             bulletSpeed = 1 + floor * 0.05f;
             order = new List<string>(bdef.attacks);
+            bulletSprite = bdef.bullet;
+            if (bdef.glow) light = LightingSystem.Add(MathX.ToWorld(p, 2.5f), 7.5f, new Color(1f, 0.7f, 0.35f), 1.4f, -1, 1.5f);
         }
 
         public override void Tick(float dt)
@@ -75,7 +82,8 @@ namespace Ecos
             }
             if (P.Vulnerable() && (P.pos - pos).magnitude < r + P.hitR) P.Hurt();
 
-            if (atk != null)
+            if (atk != null && pre > 0) { pre -= dt; }
+            else if (atk != null)
             {
                 atk.t += dt;
                 if (Run(atk, dt))
@@ -94,6 +102,7 @@ namespace Ecos
                     if (attackIdx % order.Count == 0)
                         for (int i = order.Count - 1; i > 0; i--) { int j = Random.Range(0, i + 1); (order[i], order[j]) = (order[j], order[i]); }
                     atk = new AttackState { name = name };
+                    pre = SpriteLib.Get(sheet, "windup") != null ? 0.45f : 0f;
                 }
             }
             UpdateVisual();
@@ -103,13 +112,26 @@ namespace Ecos
 
         protected override void UpdateVisual()
         {
-            base.UpdateVisual();
+            string suffix = Phase2 && SpriteLib.Get(sheet, "idle2") != null ? "2" : "";
+            Anim a = null;
+            if (atk != null) a = SpriteLib.Get(sheet, (pre > 0 || atk.windup ? "windup" : "attack") + suffix);
+            if (a == null) a = SpriteLib.Get(sheet, "idle" + suffix) ?? anim;
+            view.SetSprite(a.At(t));
+            view.Flip(false);
+            float wu = (atk != null && atk.windup) || pre > 0 ? 0.15f + Mathf.Sin(t * 40) * 0.12f : 0;
+            view.SetFlash(Mathf.Max(flash * 0.9f, wu));
             view.SpriteVisible(alpha > 0.5f || Mathf.FloorToInt(t * 20) % 2 == 0);
-            view.SetTint(Phase2 ? new Color(1f, 0.82f, 0.82f) : Color.white);
-            if (atk != null && atk.windup) view.SetFlash(Mathf.Max(flash, 0.3f + Mathf.Sin(t * 40) * 0.25f));
-            // sombra encolhe no pulo (noção de altura)
+            if (suffix == "") view.SetTint(Phase2 ? new Color(1f, 0.82f, 0.82f) : Color.white);
             float hop = atk?.hopY ?? 0;
             view.SetShadowSize(r * 2.4f * (1 - Mathf.Clamp01(hop / 3f) * 0.5f));
+            view.Place(pos, Height);
+            if (light != null) { light.pos = MathX.ToWorld(pos, 2.6f) + new Vector3(0, 0, -0.5f); light.intensity = (Phase2 ? 1.8f : 1.4f) * (pre > 0 ? 1.3f : 1f); }
+        }
+
+        public override void Die()
+        {
+            if (light != null) LightingSystem.Remove(light);
+            base.Die();
         }
 
         // ------------------------------------------------------------------ ataques

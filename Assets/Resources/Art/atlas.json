@@ -3,9 +3,9 @@
   {
    "name": "player",
    "file": "Art/Sheets/player",
-   "fw": 24,
-   "fh": 26,
-   "pivotX": 12.0,
+   "fw": 30,
+   "fh": 30,
+   "pivotX": 15.0,
    "pivotY": 1,
    "anims": [
     {
@@ -51,17 +51,356 @@
      "loop": true
     },
     {
-     "name": "roll",
+     "name": "dodge_down",
      "row": 6,
      "count": 6,
      "fps": 14,
      "loop": false
     },
     {
-     "name": "death",
+     "name": "dodge_side",
      "row": 7,
+     "count": 6,
+     "fps": 14,
+     "loop": false
+    },
+    {
+     "name": "dodge_up",
+     "row": 8,
+     "count": 6,
+     "fps": 14,
+     "loop": false
+    },
+    {
+     "name": "hurt",
+     "row": 9,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    },
+    {
+     "name": "death",
+     "row": 10,
+     "count": 6,
+     "fps": 8,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "enemy_cultista",
+   "file": "Art/Sheets/enemy_cultista",
+   "fw": 24,
+   "fh": 28,
+   "pivotX": 12.0,
+   "pivotY": 2,
+   "anims": [
+    {
+     "name": "idle",
+     "row": 0,
      "count": 4,
      "fps": 6,
+     "loop": true
+    },
+    {
+     "name": "walk",
+     "row": 1,
+     "count": 4,
+     "fps": 8,
+     "loop": true
+    },
+    {
+     "name": "aim",
+     "row": 2,
+     "count": 2,
+     "fps": 10,
+     "loop": true
+    },
+    {
+     "name": "death",
+     "row": 3,
+     "count": 7,
+     "fps": 10,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "boss_viuva",
+   "file": "Art/Sheets/boss_viuva",
+   "fw": 64,
+   "fh": 72,
+   "pivotX": 32.0,
+   "pivotY": 2,
+   "anims": [
+    {
+     "name": "idle",
+     "row": 0,
+     "count": 4,
+     "fps": 6,
+     "loop": true
+    },
+    {
+     "name": "windup",
+     "row": 1,
+     "count": 2,
+     "fps": 8,
+     "loop": true
+    },
+    {
+     "name": "attack",
+     "row": 2,
+     "count": 2,
+     "fps": 10,
+     "loop": true
+    },
+    {
+     "name": "idle2",
+     "row": 3,
+     "count": 4,
+     "fps": 7,
+     "loop": true
+    },
+    {
+     "name": "windup2",
+     "row": 4,
+     "count": 2,
+     "fps": 8,
+     "loop": true
+    },
+    {
+     "name": "attack2",
+     "row": 5,
+     "count": 2,
+     "fps": 10,
+     "loop": true
+    },
+    {
+     "name": "death",
+     "row": 6,
+     "count": 8,
+     "fps": 7,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "prop_candelabra",
+   "file": "Art/Sheets/prop_candelabra",
+   "fw": 16,
+   "fh": 34,
+   "pivotX": 8.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "burn",
+     "row": 0,
+     "count": 4,
+     "fps": 8,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "prop_candles",
+   "file": "Art/Sheets/prop_candles",
+   "fw": 16,
+   "fh": 14,
+   "pivotX": 8.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "burn",
+     "row": 0,
+     "count": 4,
+     "fps": 8,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "wall_torch",
+   "file": "Art/Sheets/wall_torch",
+   "fw": 12,
+   "fh": 22,
+   "pivotX": 6.0,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "burn",
+     "row": 0,
+     "count": 4,
+     "fps": 10,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "prop_coffin",
+   "file": "Art/Sheets/prop_coffin",
+   "fw": 18,
+   "fh": 32,
+   "pivotX": 9.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "prop_statue",
+   "file": "Art/Sheets/prop_statue",
+   "fw": 22,
+   "fh": 40,
+   "pivotX": 11.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "prop_cage",
+   "file": "Art/Sheets/prop_cage",
+   "fw": 18,
+   "fh": 30,
+   "pivotX": 9.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "prop_banner",
+   "file": "Art/Sheets/prop_banner",
+   "fw": 14,
+   "fh": 28,
+   "pivotX": 7.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "prop_chains",
+   "file": "Art/Sheets/prop_chains",
+   "fw": 12,
+   "fh": 22,
+   "pivotX": 6.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "prop_bones",
+   "file": "Art/Sheets/prop_bones",
+   "fw": 18,
+   "fh": 12,
+   "pivotX": 9.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "decal_web",
+   "file": "Art/Sheets/decal_web",
+   "fw": 16,
+   "fh": 16,
+   "pivotX": 0,
+   "pivotY": 16,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "decal_blood0",
+   "file": "Art/Sheets/decal_blood0",
+   "fw": 28,
+   "fh": 16,
+   "pivotX": 14.0,
+   "pivotY": 8.0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "decal_blood1",
+   "file": "Art/Sheets/decal_blood1",
+   "fw": 28,
+   "fh": 16,
+   "pivotX": 14.0,
+   "pivotY": 8.0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "decal_blood2",
+   "file": "Art/Sheets/decal_blood2",
+   "fw": 28,
+   "fh": 16,
+   "pivotX": 14.0,
+   "pivotY": 8.0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
      "loop": false
     }
    ]
@@ -596,10 +935,10 @@
   {
    "name": "bullet_enemy",
    "file": "Art/Sheets/bullet_enemy",
-   "fw": 10,
-   "fh": 10,
-   "pivotX": 5.0,
-   "pivotY": 5.0,
+   "fw": 12,
+   "fh": 12,
+   "pivotX": 6.0,
+   "pivotY": 6.0,
    "anims": [
     {
      "name": "frames",
@@ -613,10 +952,10 @@
   {
    "name": "bullet_enemyBig",
    "file": "Art/Sheets/bullet_enemyBig",
-   "fw": 16,
-   "fh": 16,
-   "pivotX": 8.0,
-   "pivotY": 8.0,
+   "fw": 17,
+   "fh": 17,
+   "pivotX": 8.5,
+   "pivotY": 8.5,
    "anims": [
     {
      "name": "frames",
@@ -728,6 +1067,57 @@
      "loop": false
     }
    ]
+  },
+  {
+   "name": "bullet_waxflame",
+   "file": "Art/Sheets/bullet_waxflame",
+   "fw": 11,
+   "fh": 13,
+   "pivotX": 5.5,
+   "pivotY": 6.5,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "bullet_tracer",
+   "file": "Art/Sheets/bullet_tracer",
+   "fw": 14,
+   "fh": 5,
+   "pivotX": 7.0,
+   "pivotY": 2.5,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "bullet_casing",
+   "file": "Art/Sheets/bullet_casing",
+   "fw": 5,
+   "fh": 3,
+   "pivotX": 2.5,
+   "pivotY": 1.5,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
   }
  ],
  "weapons": [
@@ -735,81 +1125,89 @@
    "name": "pistola",
    "file": "Art/Weapons/pistola",
    "gripX": 4,
-   "gripY": 5,
-   "w": 16,
-   "h": 10
+   "gripY": 6,
+   "w": 18,
+   "h": 11
   },
   {
    "name": "escopeta",
    "file": "Art/Weapons/escopeta",
-   "gripX": 9,
-   "gripY": 6,
-   "w": 26,
-   "h": 10
+   "gripX": 10,
+   "gripY": 7,
+   "w": 28,
+   "h": 11
   },
   {
    "name": "metralhadora",
    "file": "Art/Weapons/metralhadora",
-   "gripX": 8,
-   "gripY": 7,
-   "w": 24,
-   "h": 12
+   "gripX": 9,
+   "gripY": 8,
+   "w": 26,
+   "h": 13
   },
   {
    "name": "rifle",
    "file": "Art/Weapons/rifle",
-   "gripX": 11,
-   "gripY": 6,
-   "w": 30,
-   "h": 10
+   "gripX": 12,
+   "gripY": 7,
+   "w": 32,
+   "h": 11
   },
   {
    "name": "bolhas",
    "file": "Art/Weapons/bolhas",
-   "gripX": 5,
-   "gripY": 8,
-   "w": 20,
-   "h": 12
+   "gripX": 6,
+   "gripY": 9,
+   "w": 22,
+   "h": 13
   },
   {
    "name": "raio",
    "file": "Art/Weapons/raio",
-   "gripX": 7,
-   "gripY": 8,
-   "w": 24,
-   "h": 12
+   "gripX": 8,
+   "gripY": 9,
+   "w": 26,
+   "h": 13
   },
   {
    "name": "foguete",
    "file": "Art/Weapons/foguete",
-   "gripX": 9,
-   "gripY": 9,
-   "w": 28,
-   "h": 13
+   "gripX": 10,
+   "gripY": 10,
+   "w": 30,
+   "h": 14
   },
   {
    "name": "besta",
    "file": "Art/Weapons/besta",
-   "gripX": 6,
-   "gripY": 9,
-   "w": 22,
-   "h": 15
+   "gripX": 7,
+   "gripY": 10,
+   "w": 24,
+   "h": 17
   },
   {
    "name": "revolver",
    "file": "Art/Weapons/revolver",
    "gripX": 4,
-   "gripY": 6,
-   "w": 19,
-   "h": 11
+   "gripY": 7,
+   "w": 20,
+   "h": 12
   },
   {
    "name": "estrelas",
    "file": "Art/Weapons/estrelas",
-   "gripX": 5,
-   "gripY": 8,
-   "w": 21,
-   "h": 12
+   "gripX": 6,
+   "gripY": 9,
+   "w": 22,
+   "h": 13
+  },
+  {
+   "name": "flintlock",
+   "file": "Art/Weapons/flintlock",
+   "gripX": 4,
+   "gripY": 5,
+   "w": 18,
+   "h": 10
   }
  ],
  "tilesets": [

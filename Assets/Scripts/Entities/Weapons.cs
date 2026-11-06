@@ -5,7 +5,7 @@ namespace Ecos
 {
     public class WeaponDef
     {
-        public string id, name, bullet = "player", sfx = "shoot";
+        public string id, name, bullet = "tracer", sfx = "shoot";
         public int tier;
         public float dmg, rate, reload, spread, speed, life = 1.2f, size = 1f, kick = 0.5f, speedVar;
         public int mag, ammo, pellets = 1, pierce, bounce;
@@ -71,15 +71,15 @@ namespace Ecos
 
         public static readonly Theme[] All =
         {
-            new Theme { name = "Masmorra Ferrugem", tileset = "masmorra", ambient = C("#8a7468"), torch = C("#ffa050"), background = C("#120a0c"), boss = "reiGosma",
-                enemies = new[] { ("gosma", 5f), ("cogumelo", 3f), ("caveira", 2f), ("morcego", 2f) } },
-            new Theme { name = "Catacumbas de Osso", tileset = "catacumbas", ambient = C("#727a94"), torch = C("#8ab4ff"), background = C("#0a0b12"), boss = "sinoFantasma",
+            new Theme { name = "Cripta das Velas", tileset = "masmorra", ambient = C("#4a3c40"), torch = C("#ff9a48"), background = C("#060304"), boss = "viuva",
+                enemies = new[] { ("cultista", 1f) } },
+            new Theme { name = "Catacumbas de Osso", tileset = "catacumbas", ambient = C("#4e546a"), torch = C("#8ab4ff"), background = C("#0a0b12"), boss = "sinoFantasma",
                 enemies = new[] { ("caveira", 5f), ("morcego", 3f), ("lanterna", 3f), ("gosma", 2f), ("cogumelo", 2f) } },
-            new Theme { name = "Forja Rubra", tileset = "forja", ambient = C("#8a6260"), torch = C("#ff7a30"), background = C("#140806"), boss = "golem",
+            new Theme { name = "Forja Rubra", tileset = "forja", ambient = C("#5e4442"), torch = C("#ff7a30"), background = C("#140806"), boss = "golem",
                 enemies = new[] { ("torreta", 3f), ("besouro", 3f), ("caveira", 3f), ("lanterna", 3f), ("morcego", 2f) } },
-            new Theme { name = "Cripta Esmeralda", tileset = "cripta", ambient = C("#628a74"), torch = C("#7dffb0"), background = C("#06100a"), boss = "aranha",
+            new Theme { name = "Cripta Esmeralda", tileset = "cripta", ambient = C("#425e50"), torch = C("#7dffb0"), background = C("#06100a"), boss = "aranha",
                 enemies = new[] { ("cristal", 4f), ("besouro", 3f), ("torreta", 3f), ("cogumelo", 3f), ("lanterna", 2f) } },
-            new Theme { name = "Altar do Último Tiro", tileset = "altar", ambient = C("#7a6890"), torch = C("#d08aff"), background = C("#0c0714"), boss = "sacerdote",
+            new Theme { name = "Altar do Último Tiro", tileset = "altar", ambient = C("#544866"), torch = C("#d08aff"), background = C("#0c0714"), boss = "sacerdote",
                 enemies = new[] { ("cristal", 4f), ("besouro", 3f), ("torreta", 3f), ("caveira", 3f), ("lanterna", 3f), ("morcego", 2f) } },
         };
     }

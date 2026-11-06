@@ -21,6 +21,25 @@ namespace Ecos
         string bannerTop, bannerName;
         float bannerT;
         public string BossName;
+        Sprite vignette;
+
+        Sprite Vignette()
+        {
+            if (vignette != null) return vignette;
+            const int W = 96, H = 54;
+            var t = new Texture2D(W, H, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    float dx = (x + 0.5f) / W * 2 - 1, dy = (y + 0.5f) / H * 2 - 1;
+                    float d = Mathf.Sqrt(dx * dx * 0.8f + dy * dy * 1.1f);
+                    float a = Mathf.Clamp01((d - 0.55f) / 0.6f);
+                    t.SetPixel(x, y, new Color(0.02f, 0.0f, 0.02f, a * a * 0.85f));
+                }
+            t.Apply();
+            vignette = Sprite.Create(t, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 16);
+            return vignette;
+        }
         public float BossFrac;
 
         public void Dirty() { }  // o HUD é redesenhado todo quadro
@@ -52,6 +71,8 @@ namespace Ecos
             int W = ui.W, H = ui.H;
             var st = G.State;
 
+            // vinheta escura nas bordas (clima de terror)
+            ui.Stretch(Vignette(), 0, 0, W, H, Color.white);
             if (st == GameState.Playing || st == GameState.Paused || st == GameState.Dying) DrawGameplay(dt, W, H);
 
             if (st == GameState.Title) DrawTitle(W, H);

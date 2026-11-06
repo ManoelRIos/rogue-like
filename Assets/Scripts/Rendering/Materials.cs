@@ -46,6 +46,7 @@ namespace Ecos
             public float life = -1;     // >0 = luz temporária
             public float flicker;       // 0..1
             public float phase;
+            public bool enabled = true;
             internal float baseIntensity;
         }
 
@@ -74,6 +75,7 @@ namespace Ecos
             for (int i = lights.Count - 1; i >= 0; i--)
             {
                 var l = lights[i];
+                if (!l.enabled) continue;
                 if (l.life > 0)
                 {
                     l.life -= dt;
