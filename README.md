@@ -1,73 +1,75 @@
-# Ecos do Gatilho
+# Ecos do Gatilho (Unity 6)
 
-Roguelike *bullet hell* em **2.5D** inspirado em Enter the Gungeon, feito com **Three.js** + **Vite**.
-Desça 5 andares gerados proceduralmente, desvie das balas com cambalhotas e derrote o guardião de cada andar.
+Roguelike *bullet hell* em **2.5D** no estilo dos dungeon crawlers de visão 3/4: 5 andares procedurais,
+cambalhota com invulnerabilidade, 10 armas, 8 inimigos e 5 chefes. Feito em **Unity 6 (Built-in Render Pipeline)**,
+com todo o conteúdo montado por código — não há cenas ou prefabs para configurar.
 
-## Como jogar
+![Prévia da visão 2.5D](Docs/preview_masmorra.png)
 
-```bash
-npm install
-npm run dev      # abre em http://localhost:5173
-npm run build    # gera a versão final em dist/
-```
+> A imagem acima é uma prévia estática gerada com a mesma projeção e os mesmos sprites do jogo
+> (`Tools/ArtGen/mock_render.py`). A versão web antiga (Three.js) continua na branch `web`.
 
-### Controles
+## Como abrir
+
+1. Unity Hub → **Add project from disk** → selecione esta pasta.
+2. Abra com **Unity 6000.0.85f1** (ou mais novo da linha 6000.x).
+3. Na primeira abertura o script `Assets/Editor/ProjectSetup.cs` importa a arte como pixel art,
+   cria `Assets/Scenes/Main.unity` e coloca a cena no Build Settings.
+4. Aperte **Play**. (O jogo também inicia sozinho em qualquer cena, inclusive vazia.)
+
+Se algo da arte aparecer borrado, use o menu **Ecos → Configurar projeto**.
+
+## Controles
 
 | Ação | Tecla |
 | --- | --- |
 | Mover | `W A S D` / setas |
-| Mirar / atirar | Mouse / clique esquerdo (segure para tiro automático) |
+| Mirar / atirar | mouse / botão esquerdo (segure para automático) |
 | Cambalhota (invulnerável no início) | `Espaço` ou botão direito |
 | Recarregar | `R` |
-| Blank (apaga todas as balas inimigas) | `Q` |
+| Blank (apaga as balas inimigas) | `Q` |
 | Interagir (baús, loja, armas, alçapão) | `E` |
 | Trocar arma | `1–9` ou roda do mouse |
 | Pausar | `Esc` / `P` |
-
-## O que tem no jogo
-
-- **5 andares** com temas próprios: Masmorra Ferrugem, Catacumbas de Osso, Forja Rubra, Cripta Esmeralda e Altar do Último Tiro.
-- **Mapa procedural**: salas numa grade ligadas por corredores, com sala inicial, salas de combate (com pilares, caixas destrutíveis e poços), sala do tesouro, loja e sala do chefe no ponto mais distante. Cada andar é diferente a cada partida.
-- **Cambalhota** com quadros de invulnerabilidade para atravessar as balas, e **blanks** para limpar a tela em emergências.
-- **10 armas** (pistola, escopeta, metralhadora, rifle perfurante, bolhas que ricocheteiam, lança-raios, canhão de fogos explosivo, besta tripla, revólver dourado com ricochete, lança-estrelas teleguiado).
-- **8 inimigos** com padrões de tiro diferentes (tiro mirado, leque, rajada, anéis, espiral, teleporte, escopeta) que avisam antes de atirar.
-- **5 chefes** com múltiplos ataques e segunda fase abaixo de 50% de vida: Rei Gosma, Sino Fantasma, Golem da Forja, Aranha Relojoeira e Sacerdote do Último Tiro.
-- Portas que trancam durante o combate, ondas de inimigos, moedas, loja, baús, minimapa, HUD, sons sintetizados e tremor de tela.
+| Câmera 3D experimental | `F2` (no 3D, `Shift+Q/E` gira) |
+| Depuração (Editor) | `F1` modo deus · `F3` pular de andar |
 
 ## Visual 2.5D
 
-O cenário é 3D (chão, paredes com altura, pilares, caixas e portões) visto por uma câmera inclinada em perspectiva,
-enquanto personagens, inimigos e itens são sprites de pixel art em pé (billboards). Tudo é renderizado em baixa
-resolução e ampliado sem suavização para manter o aspecto pixelado, com luz dinâmica de tochas e do jogador.
-Todos os sprites são desenhados por código (`src/sprites.js` e `src/weapons.js`) — não há arquivos de imagem.
+- **Câmera ortográfica a 45° com projeção "cabinet"**: o chão aparece sem achatamento (1 tile = 16×16 px)
+  e a face frontal das paredes aparece com a altura real. As laterais das paredes ficam de perfil — nada
+  de visão "lateralizada".
+- **O mundo é 3D de verdade**: paredes altas (2 tiles), pilares (1,5), mureta de baixo (0,75), poços e caixas.
+  Personagens são sprites em pé com sombra no chão, então pulos, a cambalhota e inimigos voadores mostram altura.
+- **Pixel perfect**: renderiza numa textura de ~480×270 e amplia em escala inteira, sem filtro.
+- **Luz estilizada**: shader próprio com até 16 luzes (tochas, jogador, tiros, explosões) em degraus.
 
 ## Estrutura
 
 ```
-src/
-  main.js        ponto de entrada
-  game.js        loop, estados, salas, colisão, câmera, recompensas
-  dungeon.js     geração procedural dos andares
-  world.js       geometria 3D do andar (chão, paredes, portões, tochas, luzes)
-  player.js      jogador, cambalhota, armas, blanks
-  enemies.js     inimigos comuns, chefes e padrões de balas
-  bullets.js     sistema de projéteis (InstancedMesh)
-  particles.js   partículas e clarões
-  items.js       itens, baús, loja e alçapão
-  weapons.js     definição e sprites das armas
-  sprites.js     pixel art procedural dos personagens e itens
-  hud.js         interface e minimapa
-  themes.js      temas visuais e inimigos de cada andar
-  audio.js       efeitos sonoros com WebAudio
+Assets/
+  Editor/ProjectSetup.cs        configuração automática do projeto
+  Resources/Art/                spritesheets PNG + atlas.json (gerados por Tools/ArtGen)
+  Resources/Shaders/            PixelLit, PixelAdditive, PixelBlend, PixelUI
+  Scripts/
+    Core/        GameManager (estados, salas, combate), Bootstrap, Rng
+    Rendering/   PixelCamera (2.5D/3D), SpriteLib, SpriteView, materiais e luzes
+    World/       DungeonGen (mapa procedural), RoomTemplates (salas desenhadas), LevelBuilder (geometria)
+    Entities/    Player, Weapons, Enemies, Boss, Bullets, Items, Effects
+    Net/         PlayerInputState (base para o co-op online)
+    UI/          UiDraw (interface pixel perfect) e Hud
+    Audio/       Sfx (sons sintetizados)
+Tools/ArtGen/                   gerador da pixel art em Python (Pillow)
+Docs/                           arquitetura, guia de sprites e prévias
 ```
 
-### Parâmetros de depuração (URL)
+- [Docs/ARQUITETURA.md](Docs/ARQUITETURA.md) — como funcionam câmera, mapa e o plano para co-op online.
+- [Docs/SPRITES.md](Docs/SPRITES.md) — como trocar a arte pelos seus spritesheets.
 
-- `?seed=123` — semente fixa para o mapa
-- `?floor=3` — começa no andar indicado
-- `?god` — invencível (para testes)
+## Regerar a arte
 
-## Publicar no GitHub Pages
-
-O workflow em `.github/workflows/deploy.yml` faz o build e publica a cada push na `main`.
-Basta ativar uma vez em **Settings → Pages → Source: GitHub Actions**.
+```bash
+pip install pillow
+python3 Tools/ArtGen/build.py        # recria Assets/Resources/Art
+python3 Tools/ArtGen/mock_render.py  # recria as prévias em Docs/
+```

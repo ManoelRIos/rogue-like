@@ -1,0 +1,844 @@
+{
+ "sheets": [
+  {
+   "name": "player",
+   "file": "Art/Sheets/player",
+   "fw": 24,
+   "fh": 26,
+   "pivotX": 12.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "idle_down",
+     "row": 0,
+     "count": 4,
+     "fps": 6,
+     "loop": true
+    },
+    {
+     "name": "idle_side",
+     "row": 1,
+     "count": 4,
+     "fps": 6,
+     "loop": true
+    },
+    {
+     "name": "idle_up",
+     "row": 2,
+     "count": 4,
+     "fps": 6,
+     "loop": true
+    },
+    {
+     "name": "run_down",
+     "row": 3,
+     "count": 6,
+     "fps": 12,
+     "loop": true
+    },
+    {
+     "name": "run_side",
+     "row": 4,
+     "count": 6,
+     "fps": 12,
+     "loop": true
+    },
+    {
+     "name": "run_up",
+     "row": 5,
+     "count": 6,
+     "fps": 12,
+     "loop": true
+    },
+    {
+     "name": "roll",
+     "row": 6,
+     "count": 6,
+     "fps": 14,
+     "loop": false
+    },
+    {
+     "name": "death",
+     "row": 7,
+     "count": 4,
+     "fps": 6,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "enemy_gosma",
+   "file": "Art/Sheets/enemy_gosma",
+   "fw": 20,
+   "fh": 18,
+   "pivotX": 10.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 7,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "enemy_cogumelo",
+   "file": "Art/Sheets/enemy_cogumelo",
+   "fw": 18,
+   "fh": 22,
+   "pivotX": 9.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 7,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "enemy_caveira",
+   "file": "Art/Sheets/enemy_caveira",
+   "fw": 18,
+   "fh": 26,
+   "pivotX": 9.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 7,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "enemy_morcego",
+   "file": "Art/Sheets/enemy_morcego",
+   "fw": 24,
+   "fh": 16,
+   "pivotX": 12.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 7,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "enemy_lanterna",
+   "file": "Art/Sheets/enemy_lanterna",
+   "fw": 16,
+   "fh": 24,
+   "pivotX": 8.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 7,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "enemy_torreta",
+   "file": "Art/Sheets/enemy_torreta",
+   "fw": 18,
+   "fh": 26,
+   "pivotX": 9.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 7,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "enemy_cristal",
+   "file": "Art/Sheets/enemy_cristal",
+   "fw": 16,
+   "fh": 24,
+   "pivotX": 8.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 7,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "enemy_besouro",
+   "file": "Art/Sheets/enemy_besouro",
+   "fw": 24,
+   "fh": 20,
+   "pivotX": 12.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 7,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "boss_reiGosma",
+   "file": "Art/Sheets/boss_reiGosma",
+   "fw": 48,
+   "fh": 48,
+   "pivotX": 24.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 6,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "boss_sinoFantasma",
+   "file": "Art/Sheets/boss_sinoFantasma",
+   "fw": 48,
+   "fh": 48,
+   "pivotX": 24.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 6,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "boss_golem",
+   "file": "Art/Sheets/boss_golem",
+   "fw": 48,
+   "fh": 48,
+   "pivotX": 24.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 6,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "boss_aranha",
+   "file": "Art/Sheets/boss_aranha",
+   "fw": 48,
+   "fh": 48,
+   "pivotX": 24.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 6,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "boss_sacerdote",
+   "file": "Art/Sheets/boss_sacerdote",
+   "fw": 48,
+   "fh": 48,
+   "pivotX": 24.0,
+   "pivotY": 1,
+   "anims": [
+    {
+     "name": "move",
+     "row": 0,
+     "count": 4,
+     "fps": 6,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "heart",
+   "file": "Art/Sheets/heart",
+   "fw": 11,
+   "fh": 10,
+   "pivotX": 5.5,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "heart_half",
+   "file": "Art/Sheets/heart_half",
+   "fw": 11,
+   "fh": 10,
+   "pivotX": 5.5,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "heart_empty",
+   "file": "Art/Sheets/heart_empty",
+   "fw": 11,
+   "fh": 10,
+   "pivotX": 5.5,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "blank",
+   "file": "Art/Sheets/blank",
+   "fw": 11,
+   "fh": 11,
+   "pivotX": 5.5,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "ammo",
+   "file": "Art/Sheets/ammo",
+   "fw": 16,
+   "fh": 13,
+   "pivotX": 8.0,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "pedestal",
+   "file": "Art/Sheets/pedestal",
+   "fw": 18,
+   "fh": 12,
+   "pivotX": 9.0,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "shadow",
+   "file": "Art/Sheets/shadow",
+   "fw": 16,
+   "fh": 8,
+   "pivotX": 8.0,
+   "pivotY": 4.0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "chest",
+   "file": "Art/Sheets/chest",
+   "fw": 22,
+   "fh": 18,
+   "pivotX": 11.0,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 2,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "chest_rare",
+   "file": "Art/Sheets/chest_rare",
+   "fw": 22,
+   "fh": 18,
+   "pivotX": 11.0,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 2,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "hatch",
+   "file": "Art/Sheets/hatch",
+   "fw": 32,
+   "fh": 32,
+   "pivotX": 16.0,
+   "pivotY": 16.0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "crate",
+   "file": "Art/Sheets/crate",
+   "fw": 16,
+   "fh": 16,
+   "pivotX": 8.0,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "gate",
+   "file": "Art/Sheets/gate",
+   "fw": 48,
+   "fh": 32,
+   "pivotX": 24.0,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "coin",
+   "file": "Art/Sheets/coin",
+   "fw": 9,
+   "fh": 11,
+   "pivotX": 4.5,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "spin",
+     "row": 0,
+     "count": 4,
+     "fps": 8,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "torch",
+   "file": "Art/Sheets/torch",
+   "fw": 10,
+   "fh": 18,
+   "pivotX": 5.0,
+   "pivotY": 0,
+   "anims": [
+    {
+     "name": "burn",
+     "row": 0,
+     "count": 4,
+     "fps": 8,
+     "loop": true
+    }
+   ]
+  },
+  {
+   "name": "fx_muzzle",
+   "file": "Art/Sheets/fx_muzzle",
+   "fw": 14,
+   "fh": 14,
+   "pivotX": 7.0,
+   "pivotY": 7.0,
+   "anims": [
+    {
+     "name": "play",
+     "row": 0,
+     "count": 3,
+     "fps": 14,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "fx_explosion",
+   "file": "Art/Sheets/fx_explosion",
+   "fw": 32,
+   "fh": 32,
+   "pivotX": 16.0,
+   "pivotY": 16.0,
+   "anims": [
+    {
+     "name": "play",
+     "row": 0,
+     "count": 6,
+     "fps": 14,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "fx_dust",
+   "file": "Art/Sheets/fx_dust",
+   "fw": 8,
+   "fh": 8,
+   "pivotX": 4.0,
+   "pivotY": 4.0,
+   "anims": [
+    {
+     "name": "play",
+     "row": 0,
+     "count": 4,
+     "fps": 14,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "fx_spawn",
+   "file": "Art/Sheets/fx_spawn",
+   "fw": 20,
+   "fh": 12,
+   "pivotX": 10.0,
+   "pivotY": 6.0,
+   "anims": [
+    {
+     "name": "play",
+     "row": 0,
+     "count": 4,
+     "fps": 14,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "bullet_enemy",
+   "file": "Art/Sheets/bullet_enemy",
+   "fw": 10,
+   "fh": 10,
+   "pivotX": 5.0,
+   "pivotY": 5.0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "bullet_enemyBig",
+   "file": "Art/Sheets/bullet_enemyBig",
+   "fw": 16,
+   "fh": 16,
+   "pivotX": 8.0,
+   "pivotY": 8.0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "bullet_player",
+   "file": "Art/Sheets/bullet_player",
+   "fw": 8,
+   "fh": 8,
+   "pivotX": 4.0,
+   "pivotY": 4.0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "bullet_bubble",
+   "file": "Art/Sheets/bullet_bubble",
+   "fw": 12,
+   "fh": 12,
+   "pivotX": 6.0,
+   "pivotY": 6.0,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "bullet_star",
+   "file": "Art/Sheets/bullet_star",
+   "fw": 11,
+   "fh": 11,
+   "pivotX": 5.5,
+   "pivotY": 5.5,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "bullet_bolt",
+   "file": "Art/Sheets/bullet_bolt",
+   "fw": 12,
+   "fh": 5,
+   "pivotX": 6.0,
+   "pivotY": 2.5,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "bullet_rocket",
+   "file": "Art/Sheets/bullet_rocket",
+   "fw": 14,
+   "fh": 7,
+   "pivotX": 7.0,
+   "pivotY": 3.5,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  },
+  {
+   "name": "bullet_laser",
+   "file": "Art/Sheets/bullet_laser",
+   "fw": 10,
+   "fh": 3,
+   "pivotX": 5.0,
+   "pivotY": 1.5,
+   "anims": [
+    {
+     "name": "frames",
+     "row": 0,
+     "count": 1,
+     "fps": 1,
+     "loop": false
+    }
+   ]
+  }
+ ],
+ "weapons": [
+  {
+   "name": "pistola",
+   "file": "Art/Weapons/pistola",
+   "gripX": 4,
+   "gripY": 5,
+   "w": 16,
+   "h": 10
+  },
+  {
+   "name": "escopeta",
+   "file": "Art/Weapons/escopeta",
+   "gripX": 9,
+   "gripY": 6,
+   "w": 26,
+   "h": 10
+  },
+  {
+   "name": "metralhadora",
+   "file": "Art/Weapons/metralhadora",
+   "gripX": 8,
+   "gripY": 7,
+   "w": 24,
+   "h": 12
+  },
+  {
+   "name": "rifle",
+   "file": "Art/Weapons/rifle",
+   "gripX": 11,
+   "gripY": 6,
+   "w": 30,
+   "h": 10
+  },
+  {
+   "name": "bolhas",
+   "file": "Art/Weapons/bolhas",
+   "gripX": 5,
+   "gripY": 8,
+   "w": 20,
+   "h": 12
+  },
+  {
+   "name": "raio",
+   "file": "Art/Weapons/raio",
+   "gripX": 7,
+   "gripY": 8,
+   "w": 24,
+   "h": 12
+  },
+  {
+   "name": "foguete",
+   "file": "Art/Weapons/foguete",
+   "gripX": 9,
+   "gripY": 9,
+   "w": 28,
+   "h": 13
+  },
+  {
+   "name": "besta",
+   "file": "Art/Weapons/besta",
+   "gripX": 6,
+   "gripY": 9,
+   "w": 22,
+   "h": 15
+  },
+  {
+   "name": "revolver",
+   "file": "Art/Weapons/revolver",
+   "gripX": 4,
+   "gripY": 6,
+   "w": 19,
+   "h": 11
+  },
+  {
+   "name": "estrelas",
+   "file": "Art/Weapons/estrelas",
+   "gripX": 5,
+   "gripY": 8,
+   "w": 21,
+   "h": 12
+  }
+ ],
+ "tilesets": [
+  {
+   "name": "masmorra",
+   "file": "Art/Tiles/masmorra"
+  },
+  {
+   "name": "catacumbas",
+   "file": "Art/Tiles/catacumbas"
+  },
+  {
+   "name": "forja",
+   "file": "Art/Tiles/forja"
+  },
+  {
+   "name": "cripta",
+   "file": "Art/Tiles/cripta"
+  },
+  {
+   "name": "altar",
+   "file": "Art/Tiles/altar"
+  }
+ ],
+ "font": {
+  "file": "Art/UI/font",
+  "cellW": 6,
+  "cellH": 10,
+  "cols": 16,
+  "chars": "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:;!?-+/()'\"%#<>=*_~∞·♥—…[]ÁÀÂÃÉÊÍÓÔÕÚÇ"
+ }
+}
