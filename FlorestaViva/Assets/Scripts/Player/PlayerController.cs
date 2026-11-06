@@ -20,15 +20,17 @@ namespace Floresta
     public class PlayerController : MonoBehaviour
     {
         public CharacterController cc;
-        public Rig rig;
-        public float speed = 4.2f, sprintSpeed = 7f, jumpSpeed = 5.2f, gravity = 18f;
+        public HumanRig rig;
+        public HumanAnimator anim;
+        public float speed = 2.9f, sprintSpeed = 5.6f, jumpSpeed = 5.0f, gravity = 18f;
         public float health = 100, hunger = 100;
         public readonly Dictionary<Item, int> inventory = new();
         public bool alive = true;
         public float swing;               // 0..1 animação do golpe
         public bool FirstPerson;          // esconde o próprio corpo na 1ª pessoa
         Vector3 vel;
-        float walkPhase, swingCd, hurtT, stepT, deadT;
+        float swingCd, hurtT, deadT, swingDur = 0.6f;
+        public Vector3 Velocity => vel;
         public float HurtFlash => Mathf.Clamp01(hurtT);
         public Gatherable Target { get; private set; }
         public string TargetLabel { get; private set; }
@@ -47,8 +49,16 @@ namespace Floresta
             go.transform.position = pos;
             var p = go.AddComponent<PlayerController>();
             p.cc = go.AddComponent<CharacterController>();
-            p.cc.height = 1.8f; p.cc.radius = 0.35f; p.cc.center = new Vector3(0, 0.9f, 0); p.cc.stepOffset = 0.5f; p.cc.slopeLimit = 50;
-            p.rig = Rig.Wanderer(cloak, go.transform);
+            p.cc.height = 1.8f; p.cc.radius = 0.32f; p.cc.center = new Vector3(0, 0.9f, 0); p.cc.stepOffset = 0.45f; p.cc.slopeLimit = 50;
+            p.cc.skinWidth = 0.02f; p.cc.minMoveDistance = 0;
+            p.rig = HumanRig.Build(cloak, go.transform);
+            p.anim = new HumanAnimator(p.rig);
+            p.anim.OnFootstep = (i, at) => p.Footstep(at);
+            p.anim.OnLand = (at, fall) =>
+            {
+                Audio.PlayAt(fall > 6 ? "land" : "step", at, Mathf.Clamp01(0.3f + fall * 0.08f));
+                if (fall > 4) Fx.Dust(at, 6 + (int)fall, 0.8f);
+            };
             foreach (Item i in System.Enum.GetValues(typeof(Item))) p.inventory[i] = 0;
             return p;
         }
@@ -68,33 +78,49 @@ namespace Floresta
             if (hunger <= 0) Damage(dt * 1.5f, false);
             else if (hunger > 60 && health < 100) health = Mathf.Min(100, health + dt * 0.6f);
 
-            // movimento relativo à câmera
+            // movimento relativo à câmera, com aceleração e inércia (nada de parar/girar instantâneo)
             var fwd = Quaternion.Euler(0, inp.yaw, 0) * Vector3.forward;
             var right = Quaternion.Euler(0, inp.yaw, 0) * Vector3.right;
             var dir = (fwd * inp.move.y + right * inp.move.x);
             if (dir.sqrMagnitude > 1) dir.Normalize();
+            bool grounded = cc.isGrounded;
             float sp = inp.sprint && hunger > 5 ? sprintSpeed : speed;
-            var h = dir * sp;
-            if (cc.isGrounded)
+            if (swing > 0) sp *= 0.3f;                               // golpeando: quase parado, pés firmes
+            var desired = dir * sp;
+            var hv = new Vector3(vel.x, 0, vel.z);
+            // morro acima cansa: perde velocidade conforme a inclinação
+            if (grounded && hv.sqrMagnitude > 0.1f && Game.I?.World != null)
+            {
+                var ahead = transform.position + hv.normalized * 0.6f;
+                float rise = Game.I.World.Height(ahead.x, ahead.z) - Game.I.World.Height(transform.position.x, transform.position.z);
+                desired *= Mathf.Clamp(1 - rise * 0.9f, 0.55f, 1.1f);
+            }
+            float acc = grounded ? (desired.sqrMagnitude >= hv.sqrMagnitude ? 11f : 15f) : 2.5f;
+            if (grounded && hv.sqrMagnitude > 1 && desired.sqrMagnitude > 0.1f && Vector3.Angle(hv, desired) > 110) acc = 22f;   // meia-volta
+            hv = Vector3.MoveTowards(hv, desired, acc * dt);
+            if (grounded)
             {
                 vel.y = -2f;
-                if (inp.jump) { vel.y = jumpSpeed; Audio.Play("step", 0.5f); }
+                if (inp.jump && swing <= 0) { vel.y = jumpSpeed; Audio.PlayAt("step", transform.position, 0.5f); }
             }
             vel.y -= gravity * dt;
-            cc.Move((h + Vector3.up * vel.y) * dt);
+            vel = new Vector3(hv.x, vel.y, hv.z);
+            var before = transform.position;
+            cc.Move(vel * dt);
+            // a velocidade real (encostou numa árvore = parou)
+            var real = (transform.position - before) / Mathf.Max(dt, 1e-4f);
+            vel.x = Mathf.Lerp(vel.x, real.x, 0.5f); vel.z = Mathf.Lerp(vel.z, real.z, 0.5f);
             if (transform.position.y < -20) transform.position = World.BaseCenter + Vector3.up * 5;
 
-            bool moving = dir.sqrMagnitude > 0.01f;
-            if (moving)
+            // o corpo gira para onde está indo, com limite de velocidade de giro (na 1ª pessoa, para onde olha)
+            var flatV = new Vector3(vel.x, 0, vel.z);
+            Vector3? face = FirstPerson ? fwd : flatV.sqrMagnitude > 0.25f ? flatV : (dir.sqrMagnitude > 0.01f ? dir : (Vector3?)null);
+            if (swing > 0 && !FirstPerson && dir.sqrMagnitude < 0.01f) face = null;
+            if (face != null)
             {
-                walkPhase += dt * (inp.sprint ? 13 : 9);
-                // vira o corpo para onde anda (na 1ª pessoa, para onde olha)
-                var look = FirstPerson ? fwd : dir;
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(look), dt * 12);
-                stepT -= dt * (inp.sprint ? 1.5f : 1);
-                if (stepT <= 0 && cc.isGrounded) { stepT = 0.38f; Audio.Play("step", 0.25f); }
+                float maxTurn = (FirstPerson ? 900f : Mathf.Lerp(720f, 380f, flatV.magnitude / sprintSpeed)) * dt;
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(face.Value), maxTurn);
             }
-            else if (FirstPerson) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(fwd), dt * 12);
 
             // ferramenta
             if (inp.tool != (int)tool) { tool = (Tool)inp.tool; rig.SetTool(inp.tool); }
@@ -103,18 +129,36 @@ namespace Floresta
             // alvo: canteiro mirado (fazenda) ou árvore/pedra/arbusto à frente
             FindTarget(FirstPerson ? fwd : transform.forward);
             AimFarm(inp);
-            if (inp.use && swingCd <= 0) { swingCd = tool == Tool.Machado ? 0.45f : 0.35f; swing = 0.001f; }
+            if (inp.use && swingCd <= 0)
+            {
+                swingDur = tool switch { Tool.Machado => 0.62f, Tool.Enxada => 0.56f, Tool.Sementes => 0.5f, _ => 0.85f };
+                swingCd = swingDur + 0.05f; swing = 0.001f;
+            }
             if (swing > 0)
             {
                 float prev = swing;
-                swing += dt / 0.4f;
+                swing += dt / swingDur;
                 if (prev < 0.5f && swing >= 0.5f) Strike(FirstPerson ? fwd : transform.forward);
                 if (swing >= 1) swing = 0;
             }
             if (inp.eat) Eat();
 
-            rig.Animate(walkPhase, moving ? (inp.sprint ? 1.2f : 1) : 0, swing);
+            anim.Tick(dt, vel, grounded, inp.aimDir.sqrMagnitude > 0 ? inp.aimDir : transform.forward, tool, swing);
+            if (tool == Tool.Regador && swing > 0.35f && swing < 0.8f && water > 0)
+                Fx.Drops(rig.tool.position + rig.tool.forward * 0.25f + rig.tool.up * 0.05f, transform.forward);
             foreach (var r in rig.renderers) r.enabled = !FirstPerson;
+            if (FirstPerson) foreach (var r in rig.firstPerson) r.enabled = true;
+            Wind.Push(transform.position, 0.9f);
+        }
+
+        void Footstep(Vector3 at)
+        {
+            var w = Game.I?.World;
+            bool wet = w != null && w.Height(at.x, at.z) < World.WaterLevel + 0.05f;
+            float v = new Vector3(vel.x, 0, vel.z).magnitude;
+            Audio.PlayAt(wet ? "splash" : "step", at, (wet ? 0.35f : 0.18f) + v * 0.04f, 0.04f);
+            if (wet) Fx.Splash(at);
+            else if (v > 4.5f) Fx.Dust(at, 2, 0.35f);
         }
 
         void FindTarget(Vector3 fwd)

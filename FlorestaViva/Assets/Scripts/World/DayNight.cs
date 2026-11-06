@@ -110,8 +110,13 @@ namespace Floresta
             sky.position = cameraPos;
             if (Camera.main) Camera.main.backgroundColor = fog;
 
-            Shader.SetGlobalFloat("_FlorestaTime", Time.time);
-            Shader.SetGlobalFloat("_FlorestaWind", Mathf.Lerp(0.8f, 1.6f, Mathf.PerlinNoise(Time.time * 0.05f, 0)) * (1 + Darkness * 0.6f));
+            // luz principal para água, fumaça e névoa (o sol de dia, a lua à noite)
+            bool useSun = sun.intensity >= moon.intensity;
+            var main = useSun ? sun : moon;
+            Shader.SetGlobalVector("_FlorestaSunDir", -main.transform.forward);
+            Shader.SetGlobalColor("_FlorestaSunColor", main.color * main.intensity * (useSun ? 1f : 2.2f));
+            Shader.SetGlobalColor("_FlorestaSkyColor", Color.Lerp(C(time, k => k.hor), C(time, k => k.top), 0.35f));
+            Shader.SetGlobalColor("_FlorestaAmbient", RenderSettings.ambientLight + sun.color * sun.intensity * 0.35f);
         }
 
         public string Clock()

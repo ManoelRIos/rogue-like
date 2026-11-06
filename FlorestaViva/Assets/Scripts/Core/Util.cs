@@ -149,6 +149,13 @@ namespace Floresta
             }
         }
 
+        /// <summary>Escala todos os vértices já adicionados (ex.: achatar o peito na profundidade).</summary>
+        public MeshBuilder Scale(Vector3 s, int from = 0)
+        {
+            for (int i = from; i < v.Count; i++) v[i] = Vector3.Scale(v[i], s);
+            return this;
+        }
+
         public Mesh ToMesh(string name)
         {
             var m = new Mesh { name = name, indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
@@ -176,14 +183,28 @@ namespace Floresta
 
     public static class Mats
     {
-        public static Material LowPoly, Water, Sky, Glow;
+        public static Material LowPoly, Grass, Water, Sky, Glow, Soft, SoftAdd, SoftUnlit, Fire;
         public static void Init()
         {
             if (LowPoly != null) return;
             LowPoly = new Material(Resources.Load<Shader>("Shaders/LowPoly")) { name = "LowPoly", enableInstancing = true };
+            // grama: balança mais e some aos poucos ao longe
+            Grass = new Material(LowPoly) { name = "Grama", enableInstancing = true };
+            Grass.SetFloat("_WindScale", 2.2f);
+            Grass.SetFloat("_FadeDist", 66f);
             Water = new Material(Resources.Load<Shader>("Shaders/Water")) { name = "Agua" };
             Sky = new Material(Resources.Load<Shader>("Shaders/Sky")) { name = "Ceu" };
             Glow = new Material(Resources.Load<Shader>("Shaders/Glow")) { name = "Brilho", enableInstancing = true };
+            var soft = Resources.Load<Shader>("Shaders/Soft");
+            Soft = new Material(soft) { name = "Fumaca", enableInstancing = true };
+            SoftAdd = new Material(soft) { name = "Faiscas", enableInstancing = true };
+            SoftAdd.SetFloat("_Src", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            SoftAdd.SetFloat("_Dst", (float)UnityEngine.Rendering.BlendMode.One);
+            SoftAdd.SetFloat("_Lit", 0);
+            SoftUnlit = new Material(soft) { name = "Nuvens", enableInstancing = true };
+            SoftUnlit.SetFloat("_Lit", 0);
+            SoftUnlit.SetFloat("_UseFog", 0);
+            Fire = new Material(Resources.Load<Shader>("Shaders/Fire")) { name = "Fogo" };
         }
 
         public static GameObject Object(string name, Mesh mesh, Material mat, Transform parent = null, bool shadows = true)

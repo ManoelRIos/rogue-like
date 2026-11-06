@@ -20,7 +20,7 @@ namespace Floresta
         public bool Eating { get; private set; }
         public Vector3 Position => transform.position;
         State state = State.Stalk;
-        float stateT, phase, attackCd, orbit, speedMul, fade = 0, whisperT;
+        float stateT, phase, attackCd, orbit, speedMul, fade = 0, whisperT, curSpeed;
         Vector3 fleeFrom;
         bool watched;
 
@@ -79,7 +79,7 @@ namespace Floresta
                 fade -= dt * 0.8f;
                 SetAlpha(fade);
                 transform.position += Vector3.up * dt * 0.5f;
-                rig.Animate(phase, 0, 0, true);
+                rig.AnimateShade(dt, 0, 0, false, false, false);
                 if (fade <= 0) Destroy(gameObject);
                 return;
             }
@@ -165,9 +165,11 @@ namespace Floresta
             var dir = Flat(goal - pos);
             if (dir.magnitude > 0.1f)
             {
-                var step = dir.normalized * Mathf.Min(dir.magnitude, speed * speedMul * dt);
-                pos += step;
+                // acelera e freia (não muda de velocidade de uma vez)
+                curSpeed = Mathf.MoveTowards(curSpeed, speed * speedMul, (speed * speedMul > curSpeed ? 6f : 10f) * dt);
+                pos += dir.normalized * Mathf.Min(dir.magnitude, curSpeed * dt);
             }
+            else curSpeed = Mathf.MoveTowards(curSpeed, 0, 10f * dt);
             // olha para onde vai; enquanto espreita, encara o jogador
             var face = Eating && raid != null ? Flat(raid.pos - pos) : state == State.Stalk && target != null ? Flat(target.transform.position - pos) : dir;
             if (face.sqrMagnitude > 0.01f)
@@ -175,9 +177,8 @@ namespace Floresta
             pos.y = Mathf.Max(world.Height(pos.x, pos.z), World.WaterLevel - 0.2f) + Mathf.Sin(phase * 0.3f) * 0.05f;
             transform.position = pos;
 
-            float walk = Mathf.Clamp01(speed / 4f);
             float swing = state == State.Attack ? Mathf.Clamp01(1 - stateT / 0.6f) : Eating ? Mathf.Abs(Mathf.Sin(phase * 0.8f)) * 0.6f : 0;
-            rig.Animate(phase, state == State.Stalk && watched ? 0 : walk, swing, true);
+            rig.AnimateShade(dt, state == State.Stalk && watched ? 0 : curSpeed, swing, state == State.Stalk && watched, state == State.Charge, Eating);
         }
 
         static Vector3 Flat(Vector3 v) { v.y = 0; return v; }

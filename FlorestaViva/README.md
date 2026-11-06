@@ -59,6 +59,27 @@ Se algo der erro, copie a **primeira** mensagem vermelha do Console (as outras c
 - **À noite os Vultos atacam a horta**: parte deles vai direto nas plantas que estão **fora da luz da fogueira** e come até destruir. Aparece o aviso "A PLANTAÇÃO!". Para proteger: plante perto do fogo, mantenha a fogueira alta (o raio de luz cresce com a lenha) ou vá lá espantar com o machado.
 - O Andarilho troca a ferramenta na mão (machado, enxada, saco de sementes, regador).
 
+## Visual e animação (atualização)
+
+- **Andarilho com esqueleto completo** (quadril, coluna, peito, pescoço, cabeça; ombro → cotovelo → mão; coxa → joelho → pé) e proporções de adulto.
+- **Animação procedural realista**, sem clipes prontos:
+  - pés posicionados por **IK em cima do chão de verdade** (raycast): não patinam, sobem e descem morro, o pé acompanha a inclinação e "empurra" o chão no fim do passo;
+  - cadência e passada calculadas pela velocidade; o quadril sobe/desce e balança para o lado da perna de apoio; correr agacha um pouco;
+  - **inércia**: o corpo acelera e freia, inclina para frente ao arrancar e para trás ao frear, **inclina nas curvas**, tem limite de velocidade de giro e faz meia-volta mais lenta;
+  - parado: respira, troca o peso de perna, olha em volta de vez em quando; ao girar no lugar **dá passinhos** para acompanhar;
+  - pulo e **aterrissagem com amortecimento** (o quadril afunda conforme a altura da queda, poeira e som);
+  - a **cabeça olha para onde a câmera aponta** e compensa o balanço do corpo;
+  - golpes com **antecipação, impacto e recuperação**, diferentes para machado, enxada, sementes (jogar a mão) e regador (inclinar e derramar, com gotas);
+  - **molas** na aba do casaco, mochila e cachecol (balançam ao correr, pular e parar);
+  - passos com som posicional, respingo na água e poeira ao correr.
+- **Vulto** com movimento de molas soltas: braços pendurados que arrastam, corpo curvado que se inclina ao avançar, **tiques bruscos de cabeça**; quando você olha, ele congela com a cabeça torta.
+- **Vento de verdade**: rajadas em faixas que atravessam o campo a favor do vento (a grama ondula quando uma passa), direção que muda ao longo do dia, tremidinha nas pontas; **a grama abre quando você ou um Vulto passa**; folhas e grama têm luz translúcida (sem lado preto).
+- **Mais vegetação**: grama com lâminas curvas (escuras na base, claras na ponta), capim alto com espiga nos campos e no rio, **samambaias** na mata fechada; a grama some aos poucos ao longe em vez de "piscar"; desenho por células (só perto da câmera).
+- **Água nova**: ondas em facetas, cor pela profundidade real, **espuma na margem** e listras que descem com a **correnteza do rio**, reflexo do céu nos ângulos rasos e brilhos do sol/lua; malha só onde existe água; som de rio que vem do ponto mais próximo.
+- **Fogueira nova**: oito línguas de fogo que tremem, esticam e deitam com o vento; brasas que pulsam (e continuam vermelhas quando o fogo apaga); halo de calor; **fumaça** que sobe e vai com o vento; faíscas contínuas e **estouros com estalo**; luz que dança e **sombras que se mexem** à noite; som de fogo crepitando no lugar da fogueira.
+- **Árvores caindo com física**: cada golpe solta lascas e folhas e a copa balança; no último, a árvore **range**, tomba devagar e acelera (corpo rígido girando na base), **bate no chão, quica**, levanta poeira e uma chuva de folhas, faz a câmera tremer de quem está perto e afunda. Fica o **toco**; depois uma **muda nasce e cresce**. Pedras se quebram em pedaços; arbustos soltam folhas e frutinhas.
+- **Ambientação**: borboletas nas flores, folhas caindo na mata, **névoa rasteira** no amanhecer e à noite (mais nas baixadas e no rio), **nuvens** que andam com o vento (alaranjadas no pôr do sol), disco do sol e da lua no céu, e sons com posição: vários pássaros e pica-pau de dia; coruja, sapos no rio e **galhos estalando no escuro** à noite; rajadas de vento.
+
 ## Próximos marcos
 
 Veja [Docs/ROTEIRO.md](Docs/ROTEIRO.md): modo construção, veículo, aventuras pelo mapa (ruínas, baús, missões) e **co-op online** (até 4, host + código de convite).
@@ -68,12 +89,12 @@ Veja [Docs/ROTEIRO.md](Docs/ROTEIRO.md): modo construção, veículo, aventuras 
 ```
 Assets/
   Editor/FlorestaSetup.cs      configura projeto e cena
-  Resources/Shaders/           LowPoly (vento, neblina, sombras), Water, Sky, Glow
-  Scripts/Core/                Game (bootstrap e laço), Util (ruído, MeshBuilder, materiais)
-  Scripts/World/               World (terreno/rio), Flora (plantas e coleta), DayNight, Life (pássaros, vagalumes)
+  Resources/Shaders/           LowPoly (vento, rajadas, grama empurrada, folhas translúcidas), Water, Fire, Soft (fumaça/névoa/nuvens), Sky, Glow
+  Scripts/Core/                Game (bootstrap e laço), Util (ruído, MeshBuilder, materiais), Motion (molas, curvas), Fx (partículas)
+  Scripts/World/               World (terreno/rio/água), Flora (plantas, coleta, queda das árvores), DayNight, Wind, Life (bichos, névoa, nuvens, sons)
   Scripts/Night/               Campfire (base), Creature (Vulto), NightDirector (ondas e "olhos no escuro")
   Scripts/Farm/Farm.cs         canteiros, culturas (cenoura, abóbora), rega, crescimento e ataque noturno
-  Scripts/Player/              Characters (modelos low-poly), PlayerController, CameraRig
+  Scripts/Player/              Human (esqueleto + animação procedural), Characters (Vulto, ferramentas), PlayerController, CameraRig
   Scripts/UI/Hud.cs            interface
   Scripts/Audio/Audio.cs       sons sintetizados
 ```

@@ -19,11 +19,13 @@ namespace Floresta
 
         readonly Light light;
         readonly Transform flames;
-        readonly Material sparkMat;
-        readonly Mesh sparkMesh;
-        readonly Vector3[] sparks = new Vector3[24];
-        readonly float[] sparkLife = new float[24];
-        readonly Matrix4x4[] sparkM = new Matrix4x4[24];
+        readonly Transform[] tongues = new Transform[8];
+        readonly float[] tongueSeed = new float[8];
+        readonly Material[] tongueMat = new Material[8];
+        readonly Material emberMat, glowMat;
+        readonly Transform glow;
+        readonly AudioSource crackle;
+        float smokeT, popT, flick;
 
         public Campfire(World w, Transform parent)
         {
@@ -50,13 +52,44 @@ namespace Floresta
             var ring = Mats.Object("fogueira", mb.ToMesh("fogueira"), Mats.LowPoly, root);
             ring.transform.position = Pos;
 
-            // chamas (brilho aditivo, sem sombra)
-            mb = new MeshBuilder();
-            mb.Cylinder(new Vector3(0, 0.1f, 0), 1.1f, 0.42f, 0f, 6, Col.Hex("#ff6a1a"), 0, 0, 0, rng, false);
-            mb.Cylinder(new Vector3(0.1f, 0.1f, 0.05f), 0.8f, 0.28f, 0f, 5, Col.Hex("#ffb030"), 0, 0, 0.5f, rng, false);
-            mb.Cylinder(new Vector3(-0.08f, 0.1f, -0.05f), 0.55f, 0.18f, 0f, 5, Col.Hex("#ffe080"), 0, 0, 1f, rng, false);
-            flames = Mats.Object("chamas", mb.ToMesh("chamas"), Mats.Glow, root, false).transform;
-            flames.position = Pos;
+            // chamas: várias "línguas" de fogo, cada uma com seu ritmo, + núcleo brilhante
+            flames = new GameObject("chamas").transform;
+            flames.SetParent(root, false);
+            flames.position = Pos + Vector3.up * 0.08f;
+            for (int i = 0; i < tongues.Length; i++)
+            {
+                var m = new MeshBuilder();
+                float h = i == 0 ? 1.25f : rng.Range(0.5f, 1.0f), r = i == 0 ? 0.3f : rng.Range(0.1f, 0.2f);
+                Tongue(m, h, r, i == 0 ? 7 : 5, rng);
+                tongueMat[i] = new Material(Mats.Fire) { name = "lingua" };
+                tongueSeed[i] = rng.Range(0, 10);
+                tongueMat[i].SetFloat("_Seed", tongueSeed[i]);
+                var go = Mats.Object("lingua", m.ToMesh("lingua"), tongueMat[i], flames, false);
+                float ang = i * 2.4f, rad = i == 0 ? 0 : rng.Range(0.12f, 0.36f);
+                go.transform.localPosition = new Vector3(Mathf.Cos(ang) * rad, 0, Mathf.Sin(ang) * rad);
+                go.transform.localRotation = Quaternion.Euler(rng.Range(-8, 8), rng.Range(0, 360), rng.Range(-8, 8));
+                tongues[i] = go.transform;
+            }
+            // brasas: carvões no centro e pontas dos troncos em brasa (pulsam)
+            emberMat = new Material(Mats.Glow) { name = "brasas" };
+            var em = new MeshBuilder();
+            for (int i = 0; i < 14; i++)
+            {
+                float a = rng.Range(0, 6.28f), d = rng.Range(0, 0.42f);
+                em.Blob(new Vector3(Mathf.Cos(a) * d, 0.06f, Mathf.Sin(a) * d), new Vector3(0.07f, 0.04f, 0.06f) * rng.Range(0.7f, 1.3f), Color.Lerp(Col.Hex("#ff4a10"), Col.Hex("#ffa030"), rng.Value), 0.2f, rng, 0);
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                float a = i / 4f * Mathf.PI * 2 + 0.4f;
+                em.Blob(new Vector3(Mathf.Cos(a) * 0.12f, 0.14f, Mathf.Sin(a) * 0.12f), new Vector3(0.06f, 0.05f, 0.06f), Col.Hex("#ff6018"), 0.15f, rng, 0);
+            }
+            Mats.Object("brasas", em.ToMesh("brasas"), emberMat, root, false).transform.position = Pos;
+            // halo de calor (bolha aditiva) que respira com o fogo
+            glowMat = new Material(Mats.SoftAdd) { name = "halo" };
+            var gm = new MeshBuilder();
+            gm.Blob(Vector3.zero, Vector3.one * 0.5f, Col.Hex("#ff7a28"), 0.05f, rng, 1);
+            glow = Mats.Object("halo", gm.ToMesh("halo"), glowMat, root, false).transform;
+            glow.position = Pos + Vector3.up * 0.45f;
 
             var lg = new GameObject("luz_fogueira");
             lg.transform.SetParent(root, false);
@@ -64,16 +97,42 @@ namespace Floresta
             light = lg.AddComponent<Light>();
             light.type = LightType.Point;
             light.color = Col.Hex("#ff9a48");
-            light.shadows = LightShadows.Hard;
-            light.shadowStrength = 0.7f;
+            light.shadows = LightShadows.Soft;
+            light.shadowStrength = 0.75f;
+            light.shadowBias = 0.05f;
 
-            sparkMat = new Material(Mats.Glow) { name = "faiscas", enableInstancing = true };
-            mb = new MeshBuilder();
-            mb.Blob(Vector3.zero, Vector3.one * 0.035f, Col.Hex("#ffb050"), 0, rng, 0);
-            sparkMesh = mb.ToMesh("faisca");
-            for (int i = 0; i < sparks.Length; i++) sparkLife[i] = rng.Value;
+            crackle = Audio.Loop3D("crackle", Pos + Vector3.up * 0.4f, 2, 26);
 
             BuildCamp(w, root, rng);
+        }
+
+        /// <summary>Língua de fogo: cone torcido; alfa do vértice = altura (o shader usa para a cor e o tremor).</summary>
+        static void Tongue(MeshBuilder m, float h, float r, int sides, Rng rng)
+        {
+            const int rings = 4;
+            var prev = new Vector3[sides];
+            for (int k = 0; k <= rings; k++)
+            {
+                float y = k / (float)rings;
+                float rad = r * (1 - y) * (1 - y * 0.3f) + 0.005f;
+                float bend = y * y * 0.12f;
+                var ring = new Vector3[sides];
+                for (int i = 0; i < sides; i++)
+                {
+                    float a = i / (float)sides * Mathf.PI * 2 + y * 1.4f;
+                    ring[i] = new Vector3(Mathf.Cos(a) * rad + bend, y * h, Mathf.Sin(a) * rad);
+                }
+                if (k > 0)
+                    for (int i = 0; i < sides; i++)
+                    {
+                        int j = (i + 1) % sides;
+                        float y0 = (k - 1) / (float)rings;
+                        var c0 = new Color(1, 1, 1, y0); var c1 = new Color(1, 1, 1, y);
+                        m.Tri(prev[i], ring[j], prev[j], c0, c1, c0);
+                        m.Tri(prev[i], ring[i], ring[j], c0, c1, c1);
+                    }
+                prev = ring;
+            }
         }
 
         static void AddRotated(MeshBuilder dst, MeshBuilder src, Vector3 offset, Quaternion rot)
@@ -152,27 +211,50 @@ namespace Floresta
             Fuel = Mathf.Max(0, Fuel - dt * (0.05f + darkness * 0.12f + Drain));
             Drain = 0;
             float k = Fuel / MaxFuel;
-            float flick = Mathf.PerlinNoise(Time.time * 6f, 0.3f) * 0.35f + Mathf.PerlinNoise(Time.time * 17f, 4f) * 0.15f;
+            float t = Time.time;
+            // tremulação em camadas (lenta + rápida) e "engasgos" ocasionais
+            float target = Mathf.PerlinNoise(t * 2.2f, 0.3f) * 0.45f + Mathf.PerlinNoise(t * 9f, 4f) * 0.35f + Mathf.PerlinNoise(t * 23f, 9f) * 0.2f;
+            flick = Mathf.Lerp(flick, target, 1 - Mathf.Exp(-dt * 20));
             light.enabled = Lit;
-            light.intensity = (0.9f + k * 1.4f) * (0.8f + flick) * Mathf.Lerp(0.6f, 1.2f, darkness);
-            light.range = Mathf.Lerp(6f, 18f, k) * (0.92f + flick * 0.2f);
-            float s = Lit ? Mathf.Lerp(0.35f, 1.15f, k) : 0;
-            flames.localScale = new Vector3(s * (0.95f + flick * 0.2f), s * (0.85f + flick * 0.5f), s * (0.95f + flick * 0.2f));
-            flames.rotation = Quaternion.Euler(0, Time.time * 40, 0);
+            light.intensity = (0.8f + k * 1.5f) * (0.65f + flick * 0.7f) * Mathf.Lerp(0.5f, 1.25f, darkness);
+            light.range = Mathf.Lerp(6f, 19f, k) * (0.9f + flick * 0.2f);
+            // a luz "dança": as sombras dos troncos e das pessoas mexem junto
+            light.transform.position = Pos + new Vector3(Mathf.PerlinNoise(t * 3, 1) - 0.5f, 1.3f + flick * 0.25f, Mathf.PerlinNoise(t * 3, 7) - 0.5f) * 0.12f + Vector3.up * 1.25f;
+            light.shadows = darkness > 0.25f ? LightShadows.Soft : LightShadows.None;
+            light.color = Color.Lerp(Col.Hex("#ff7a30"), Col.Hex("#ffb060"), flick);
+
+            float s = Lit ? Mathf.Lerp(0.3f, 1.15f, k) : 0;
+            flames.localScale = Vector3.one * s;
+            for (int i = 0; i < tongues.Length; i++)
+            {
+                float n = Mathf.PerlinNoise(t * (2.5f + i * 0.3f), tongueSeed[i]);
+                tongues[i].localScale = new Vector3(0.85f + n * 0.3f, 0.55f + n * 0.9f, 0.85f + n * 0.3f);
+                tongueMat[i].SetColor("_Color", new Color(1, 1, 1, Mathf.Clamp01(0.55f + n * 0.6f) * (0.75f + darkness * 0.25f)));
+            }
+            glow.localScale = Vector3.one * (Lit ? (0.9f + flick * 0.5f) * Mathf.Lerp(0.6f, 1.6f, k) : 0);
+            glowMat.SetColor("_Color", new Color(1, 0.55f, 0.2f, (0.08f + flick * 0.08f) * (0.4f + darkness)));
+            // brasas continuam vermelhas um tempo mesmo com o fogo apagando
+            float ember = Mathf.Clamp01(Fuel / 10f) * (0.55f + Mathf.PerlinNoise(t * 1.3f, 2) * 0.45f);
+            emberMat.SetColor("_Color", new Color(1, 1, 1, ember));
+            if (crackle) crackle.volume = Lit ? 0.25f + k * 0.6f : 0;
 
             if (!Lit) return;
-            // faíscas subindo
-            int n = 0;
-            for (int i = 0; i < sparks.Length; i++)
+            // fumaça subindo e indo com o vento (mais visível de dia)
+            smokeT -= dt;
+            if (smokeT <= 0)
             {
-                sparkLife[i] += dt * (0.5f + (i % 5) * 0.12f);
-                if (sparkLife[i] >= 1) { sparkLife[i] = 0; sparks[i] = Pos + new Vector3(Random.Range(-0.3f, 0.3f), 0.4f, Random.Range(-0.3f, 0.3f)); }
-                float l = sparkLife[i];
-                var p = sparks[i] + new Vector3(Mathf.Sin(l * 7 + i) * 0.3f, l * 3.5f * (0.4f + k), Mathf.Cos(l * 5 + i) * 0.3f);
-                sparkM[n++] = Matrix4x4.TRS(p, Quaternion.identity, Vector3.one * (1 - l));
+                smokeT = Mathf.Lerp(0.35f, 0.12f, k);
+                Fx.Smoke(Pos + Vector3.up * (0.9f + k * 0.7f), 0.25f + k * 0.25f, Mathf.Lerp(0.32f, 0.12f, darkness));
             }
-            sparkMat.SetColor("_Color", new Color(1, 1, 1, 0.5f + darkness));
-            Graphics.DrawMeshInstanced(sparkMesh, 0, sparkMat, sparkM, n, null, UnityEngine.Rendering.ShadowCastingMode.Off, false);
+            // faíscas: fluxo contínuo + estouros com estalo
+            if (Random.value < dt * (3 + k * 8)) Fx.Sparks(Pos + Vector3.up * 0.5f, 1, 0.8f + k);
+            popT -= dt;
+            if (popT <= 0)
+            {
+                popT = Random.Range(1.5f, 5f);
+                Fx.Sparks(Pos + Vector3.up * 0.35f, Random.Range(6, 14), 1.3f + k);
+                Audio.PlayAt("pop", Pos, 0.5f + k * 0.4f);
+            }
         }
     }
 }

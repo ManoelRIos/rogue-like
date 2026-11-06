@@ -21,6 +21,7 @@ Shader "Floresta/Sky"
             #include "UnityCG.cginc"
             fixed4 _Top, _Horizon;
             float _Stars;
+            float4 _FlorestaSunDir, _FlorestaSunColor;
             struct v2f { float4 pos : SV_POSITION; float3 dir : TEXCOORD0; };
             v2f vert (appdata_base v)
             {
@@ -37,6 +38,11 @@ Shader "Floresta/Sky"
                 float3 cell = floor(i.dir * 180);
                 float s = step(0.9965, hash(cell)) * saturate(i.dir.y * 3);
                 c += s * _Stars * (0.6 + 0.4 * hash(cell + 7));
+                // disco do sol (ou da lua) + halo
+                float sd = dot(normalize(i.dir), normalize(_FlorestaSunDir.xyz));
+                float disc = smoothstep(0.9991, 0.9995, sd);
+                float halo = pow(saturate(sd), 48) * 0.35 + pow(saturate(sd), 8) * 0.08;
+                c += _FlorestaSunColor.rgb * (disc * 1.6 + halo) * saturate(i.dir.y * 8 + 0.3);
                 return fixed4(c, 1);
             }
             ENDCG

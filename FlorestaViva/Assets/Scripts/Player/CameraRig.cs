@@ -25,6 +25,7 @@ namespace Floresta
             cam.farClipPlane = 420;
             cam.fieldOfView = 62;
             cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.depthTextureMode |= DepthTextureMode.Depth;     // a água usa a profundidade (cor e espuma na margem)
             go.AddComponent<AudioListener>();
         }
 

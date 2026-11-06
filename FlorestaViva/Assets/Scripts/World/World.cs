@@ -85,17 +85,44 @@ namespace Floresta
             for (int cz = 0; cz < chunks; cz++)
                 for (int cx = 0; cx < chunks; cx++)
                     BuildChunk(cx, cz, n);
-            // água
+            BuildWater();
+        }
+
+        /// <summary>
+        /// Água só onde o terreno fica abaixo do nível (rio e poças), em triângulos irregulares para
+        /// as ondas virarem facetas. A cor do vértice guarda a direção da correnteza (rg) para o shader.
+        /// </summary>
+        void BuildWater()
+        {
             var mb = new MeshBuilder();
-            float W = Half;
-            int seg = 40;
-            for (int z = 0; z < seg; z++)
-                for (int x = 0; x < seg; x++)
+            const float S = 2.5f;
+            int n = Mathf.RoundToInt(Half * 2 / S);
+            Vector3 P(int i, int j)
+            {
+                float x = -Half + i * S + (Hash(i * 3, j) - 0.5f) * S * 0.45f, z = -Half + j * S + (Hash(j * 5, i) - 0.5f) * S * 0.45f;
+                return new Vector3(x, WaterLevel, z);
+            }
+            Color Flow(Vector3 p)
+            {
+                // tangente do rio: derivada de RiverZ; perto do centro corre mais
+                float e = 0.5f, dz = (RiverZ(p.x + e) - RiverZ(p.x - e)) / (2 * e);
+                var d = new Vector2(1, dz).normalized;
+                float k = Mathf.Clamp01(1 - RiverDist(p.x, p.z) / 12f);
+                return new Color(0.5f + d.x * 0.5f * k, 0.5f + d.y * 0.5f * k, 0, 0);
+            }
+            for (int j = 0; j < n; j++)
+                for (int i = 0; i < n; i++)
                 {
-                    float x0 = -W + x * 2 * W / seg, x1 = x0 + 2 * W / seg, z0 = -W + z * 2 * W / seg, z1 = z0 + 2 * W / seg;
-                    mb.Quad(new Vector3(x0, WaterLevel, z0), new Vector3(x0, WaterLevel, z1), new Vector3(x1, WaterLevel, z1), new Vector3(x1, WaterLevel, z0), Color.white);
+                    var a = P(i, j); var b = P(i + 1, j); var c = P(i + 1, j + 1); var d = P(i, j + 1);
+                    // só onde há água por perto (algum canto abaixo do nível)
+                    float lo = Mathf.Min(Mathf.Min(Height(a.x, a.z), Height(b.x, b.z)), Mathf.Min(Height(c.x, c.z), Height(d.x, d.z)));
+                    if (lo > WaterLevel + 0.25f) continue;
+                    mb.Tri(a, d, c, Flow(a), Flow(d), Flow(c));
+                    mb.Tri(a, c, b, Flow(a), Flow(c), Flow(b));
                 }
-            Mats.Object("Agua", mb.ToMesh("agua"), Mats.Water, Root, false);
+            if (mb.v.Count == 0) return;
+            var go = Mats.Object("Agua", mb.ToMesh("agua"), Mats.Water, Root, false);
+            go.GetComponent<Renderer>().receiveShadows = false;
         }
 
         void BuildChunk(int cx, int cz, int n)

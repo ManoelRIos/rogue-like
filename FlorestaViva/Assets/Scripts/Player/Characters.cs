@@ -19,57 +19,6 @@ namespace Floresta
             return go.transform;
         }
 
-        static readonly Color Skin = Col.Hex("#e0b08a"), Boot = Col.Hex("#3a2a1e"), Pants = Col.Hex("#4a4038"),
-            Scarf = Col.Hex("#d8b04a"), Pack = Col.Hex("#7a5a36"), Eye = Col.Hex("#1a1416");
-
-        public static Rig Wanderer(Color cloak, Transform parent = null)
-        {
-            var r = new Rig { root = new GameObject("Andarilho").transform };
-            if (parent) r.root.SetParent(parent, false);
-            var rng = new Rng(3);
-            var cloakD = Color.Lerp(cloak, Color.black, 0.3f);
-
-            r.body = new GameObject("corpo").transform; r.body.SetParent(r.root, false); r.body.localPosition = new Vector3(0, 0.75f, 0);
-            // tronco + manto
-            var mb = new MeshBuilder();
-            mb.Cylinder(new Vector3(0, -0.05f, 0), 0.7f, 0.36f, 0.26f, 7, cloak, 0, 0, 0, rng);
-            mb.Cylinder(new Vector3(0, 0.58f, 0), 0.1f, 0.3f, 0.2f, 7, Scarf, 0, 0, 0, rng);
-            mb.Box(new Vector3(-0.22f, 0.12f, -0.42f), new Vector3(0.22f, 0.55f, -0.22f), Pack, rng);        // mochila
-            mb.Box(new Vector3(-0.24f, 0.05f, -0.4f), new Vector3(0.24f, 0.12f, -0.18f), Color.Lerp(Pack, Color.black, 0.3f), rng);
-            Part("tronco", r.body, mb.ToMesh("tronco"), Vector3.zero);
-
-            // cabeça com capuz e olhos
-            mb = new MeshBuilder();
-            mb.Blob(Vector3.zero, new Vector3(0.27f, 0.27f, 0.27f), Skin, 0.04f, rng, 1);
-            mb.Blob(new Vector3(0, 0.05f, -0.05f), new Vector3(0.33f, 0.33f, 0.33f), cloakD, 0.05f, rng, 1);
-            mb.Cylinder(new Vector3(0, 0.25f, -0.12f), 0.25f, 0.12f, 0.0f, 5, cloakD, 0, 0, 0, rng);       // ponta do capuz
-            mb.Box(new Vector3(-0.12f, 0.02f, 0.24f), new Vector3(-0.05f, 0.1f, 0.28f), Eye);
-            mb.Box(new Vector3(0.05f, 0.02f, 0.24f), new Vector3(0.12f, 0.1f, 0.28f), Eye);
-            // recorta a frente do capuz: um "rosto" claro por cima
-            mb.Blob(new Vector3(0, -0.02f, 0.12f), new Vector3(0.22f, 0.22f, 0.16f), Skin, 0.03f, rng, 1);
-            mb.Box(new Vector3(-0.12f, 0.0f, 0.26f), new Vector3(-0.05f, 0.09f, 0.29f), Eye);
-            mb.Box(new Vector3(0.05f, 0.0f, 0.26f), new Vector3(0.12f, 0.09f, 0.29f), Eye);
-            r.head = Part("cabeca", r.body, mb.ToMesh("cabeca"), new Vector3(0, 0.92f, 0));
-
-            // braços e pernas (pivô em cima)
-            Mesh Limb(float len, float rad, Color c, Color end)
-            {
-                var m = new MeshBuilder();
-                m.Cylinder(new Vector3(0, -len, 0), len, rad * 0.85f, rad, 6, c, 0, 0, 0, rng);
-                m.Blob(new Vector3(0, -len, 0.02f), Vector3.one * rad * 1.15f, end, 0.05f, rng, 0);
-                return m.ToMesh("membro");
-            }
-            r.armL = Part("bracoE", r.body, Limb(0.5f, 0.09f, cloak, Skin), new Vector3(-0.36f, 0.55f, 0));
-            r.armR = Part("bracoD", r.body, Limb(0.5f, 0.09f, cloak, Skin), new Vector3(0.36f, 0.55f, 0));
-            r.legL = Part("pernaE", r.root, Limb(0.6f, 0.11f, Pants, Boot), new Vector3(-0.14f, 0.72f, 0));
-            r.legR = Part("pernaD", r.root, Limb(0.6f, 0.11f, Pants, Boot), new Vector3(0.14f, 0.72f, 0));
-
-            // ferramenta na mão direita (troca com 1-4)
-            r.tool = Part("ferramenta", r.armR, ToolMesh(0), new Vector3(0, -0.55f, 0.05f));
-            r.tool.localRotation = Quaternion.Euler(80, 0, 0);
-            r.renderers = r.root.GetComponentsInChildren<Renderer>(true);
-            return r;
-        }
 
         static Mesh[] tools;
         static readonly Color Wood = Col.Hex("#7a5232"), Iron = Col.Hex("#9aa0a8");
@@ -156,27 +105,42 @@ namespace Floresta
             return r;
         }
 
-        /// <summary>Animação procedural: caminhada (fase/intensidade), golpe (0..1), corrida.</summary>
-        public void Animate(float phase, float walk, float swing, bool creature = false)
+        // ---------------- animação do Vulto: molas soltas (braços pendurados que arrastam), tiques de cabeça
+        Spring lean, sArmL, sArmR, headYaw, headRoll, sway, bob;
+        float twitchT, twitchYaw, twitchRoll, phase;
+
+        /// <param name="speed">velocidade (m/s)</param>
+        /// <param name="swing">0..1 golpe com as garras</param>
+        /// <param name="watched">o jogador está olhando: congela numa pose estranha</param>
+        public void AnimateShade(float dt, float speed, float swing, bool watched, bool charging, bool eating)
         {
-            float s = Mathf.Sin(phase) * walk;
-            if (legL) legL.localRotation = Quaternion.Euler(s * 40, 0, 0);
-            if (legR) legR.localRotation = Quaternion.Euler(-s * 40, 0, 0);
-            if (creature)
+            if (dt <= 0) return;
+            phase += dt * (1.2f + speed * 0.9f);
+            float walk = Mathf.Clamp01(speed / 3f);
+            float s = Mathf.Sin(phase * 3.1f) * walk;
+            float leanT = charging ? 38 : eating ? 55 : watched ? 6 : 18;
+            float ln = lean.Step(leanT, 1.6f, 0.7f, dt);
+            float sw = sway.Step(Mathf.Sin(phase * 1.55f) * 9 * walk + (watched ? 0 : Ease.Noise(phase * 0.4f, 3) * 6), 1.2f, 0.5f, dt);
+            body.localRotation = Quaternion.Euler(ln, 0, sw);
+            body.localPosition = new Vector3(0, 1.4f + bob.Step(Mathf.Abs(Mathf.Cos(phase * 1.55f)) * walk * 0.1f - (eating ? 0.35f : 0), 3f, 0.6f, dt), 0);
+
+            // braços: seguem atrasados (mola mole); correndo, ficam para trás; golpe = os dois de uma vez
+            float trail = charging ? 55 : 0;
+            float baseArm = -25 + trail - swing * 125 - (eating ? 70 : 0);
+            float aL = sArmL.Step(baseArm - s * 28, 1.6f, 0.35f, dt), aR = sArmR.Step(baseArm + s * 28, 1.5f, 0.35f, dt);
+            this.armL.localRotation = Quaternion.Euler(aL, 0, -8 - walk * 6);
+            this.armR.localRotation = Quaternion.Euler(aR, 0, 8 + walk * 6);
+
+            // cabeça: espasmos rápidos de vez em quando; observada, inclina e encara
+            twitchT -= dt;
+            if (twitchT <= 0)
             {
-                armL.localRotation = Quaternion.Euler(-30 - s * 25 - swing * 100, 0, -8);
-                armR.localRotation = Quaternion.Euler(-30 + s * 25 - swing * 100, 0, 8);
-                body.localRotation = Quaternion.Euler(18 + Mathf.Sin(phase * 0.5f) * 6, 0, Mathf.Sin(phase * 0.7f) * 8);
-                head.localRotation = Quaternion.Euler(Mathf.Sin(Time.time * 7) * 6 * (1 - walk), Mathf.Sin(Time.time * 1.3f) * 25, 0);
-                body.localPosition = new Vector3(0, 1.4f + Mathf.Abs(Mathf.Cos(phase)) * walk * 0.08f, 0);
-                return;
+                twitchT = Random.Range(0.25f, 1.8f);
+                twitchYaw = Random.value < 0.6f ? Random.Range(-55f, 55f) : 0;
+                twitchRoll = Random.Range(-30f, 30f);
             }
-            armL.localRotation = Quaternion.Euler(-s * 35, 0, -6);
-            // golpe com a ferramenta: ergue e desce rápido
-            float sw = swing > 0 ? Mathf.Sin(swing * Mathf.PI) : 0;
-            armR.localRotation = Quaternion.Euler(s * 35 * (1 - sw) - sw * 140 + (swing > 0.5f ? 60 * (swing - 0.5f) : 0), 0, 6);
-            body.localPosition = new Vector3(0, 0.75f + Mathf.Abs(Mathf.Cos(phase)) * walk * 0.05f, 0);
-            body.localRotation = Quaternion.Euler(walk * 5, 0, 0);
+            float hyT = watched ? 0 : twitchYaw, hrT = watched ? 38 : twitchRoll;
+            head.localRotation = Quaternion.Euler(-ln * 0.6f + (eating ? 30 : 0), headYaw.Step(hyT, 7f, 0.55f, dt), headRoll.Step(hrT, 6f, 0.5f, dt));
         }
     }
 }

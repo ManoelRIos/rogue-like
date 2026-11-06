@@ -53,7 +53,8 @@ namespace Floresta
             yield return null;
             Flora = new Flora(World);
             Fire = new Campfire(World, World.Root);
-            Life = new Life(Flora, World.Root);
+            Fx.Init(World);
+            Life = new Life(Flora, World, World.Root);
             Cycle = new DayNight();
             Farm = new Farm(World, Fire, World.Root);
             Director = new NightDirector(World, Flora, Fire) { farm = Farm };
@@ -153,12 +154,16 @@ namespace Floresta
             Rig.Update(p.transform, dt);
             var camPos = Rig.cam.transform.position;
             Cycle.Update(worldDt, camPos);
+            Wind.Update(dt, Cycle.Darkness);
+            Fx.Update(dt, Rig.cam);
             Fire.Update(worldDt, Cycle.Darkness);
             Farm.Update(worldDt, Cycle.DayLength);
             Farm.ShowMarker(p.alive ? p.AimCell : null, p.AimOk);
             Life.Update(camPos, Cycle.Darkness, Cycle.time);
             Flora.Draw(camPos);
             Director.Tick(Cycle.IsNight, Cycle.Darkness, Players, Rig.cam, dt);
+            foreach (var c in Director.creatures)          // os Vultos também abrem caminho na grama
+                if (c && (c.Position - camPos).sqrMagnitude < 30 * 30) Wind.Push(c.Position, 1.2f);
             Audio.Mix(Cycle.Darkness, Director.Danger);
 
             if (!p.alive)

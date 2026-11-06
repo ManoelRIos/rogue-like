@@ -4,9 +4,9 @@ using UnityEngine;
 namespace Floresta
 {
     /// <summary>
-    /// Vida da floresta: vagalumes (anoitecer e noite, perto do rio e da mata fechada),
-    /// pólen flutuando de dia e bandos de pássaros circulando no céu.
-    /// Tudo instanciado/leve — nada disso tem física.
+    /// Vida e clima da floresta: vagalumes, pólen, bandos de pássaros, borboletas nas flores,
+    /// folhas caindo na mata, névoa rasteira no amanhecer e à noite, nuvens no céu, e sons com
+    /// posição no mundo (pássaros, pica-pau, coruja, sapos no rio, galhos estalando no escuro).
     /// </summary>
     public class Life
     {
@@ -17,10 +17,20 @@ namespace Floresta
         readonly List<Bird> birds = new();
 
         class Bird { public Transform t, wl, wr; public Vector3 center; public float r, h, speed, ph; }
+        class Butterfly { public Transform t, wl, wr; public Vector3 pos, target; public float ph, rest; }
 
-        public Life(Flora f, Transform parent)
+        readonly World world;
+        readonly List<Butterfly> butterflies = new();
+        readonly Mesh[] cloudMeshes = new Mesh[3];
+        readonly Mesh mistMesh;
+        readonly Vector4[] cbuf = new Vector4[1023];
+        readonly MaterialPropertyBlock mpb = new();
+        readonly AudioSource river;
+        float soundT = 3, leafAcc;
+
+        public Life(Flora f, World w, Transform parent)
         {
-            flora = f;
+            flora = f; world = w;
             var rng = new Rng(21);
             var mb = new MeshBuilder();
             mb.Blob(Vector3.zero, Vector3.one * 0.05f, Col.Hex("#c8ff60"), 0, rng, 0);
@@ -45,6 +55,47 @@ namespace Floresta
                 return w.ToMesh("asa");
             }
             var wl = Wing(-1); var wr = Wing(1);
+
+            // borboletas
+            Color[] bc = { Col.Hex("#f0a030"), Col.Hex("#f4f0e0"), Col.Hex("#6a9ae8"), Col.Hex("#f0e050") };
+            for (int i = 0; i < 14; i++)
+            {
+                var c = bc[i % bc.Length];
+                Mesh BWing(float side)
+                {
+                    var m = new MeshBuilder();
+                    m.Tri(Vector3.zero, new Vector3(side * 0.09f, 0, 0.05f), new Vector3(side * 0.07f, 0, -0.02f), Col.A(c, 0));
+                    m.Tri(Vector3.zero, new Vector3(side * 0.07f, 0, -0.02f), new Vector3(side * 0.05f, 0, -0.07f), Col.A(Color.Lerp(c, Color.black, 0.25f), 0));
+                    return m.ToMesh("asa_borboleta");
+                }
+                var bm = new MeshBuilder();
+                bm.Box(new Vector3(-0.008f, -0.008f, -0.04f), new Vector3(0.008f, 0.008f, 0.04f), Col.Hex("#2a2420"));
+                var bt = Mats.Object("borboleta", bm.ToMesh("borboleta"), Mats.LowPoly, parent, false).transform;
+                var b = new Butterfly { t = bt, ph = rng.Range(0, 10) };
+                b.wl = Mats.Object("asa", BWing(-1), Mats.LowPoly, bt, false).transform;
+                b.wr = Mats.Object("asa", BWing(1), Mats.LowPoly, bt, false).transform;
+                butterflies.Add(b);
+            }
+
+            // nuvens: aglomerados achatados de bolhas
+            for (int k = 0; k < cloudMeshes.Length; k++)
+            {
+                var cm = new MeshBuilder();
+                int puffs = 4 + k * 2;
+                for (int i = 0; i < puffs; i++)
+                {
+                    var c = new Vector3(rng.Range(-14, 14), rng.Range(-1.5f, 3), rng.Range(-8, 8));
+                    float s = rng.Range(6, 11) * (1 - Mathf.Abs(c.x) / 30f);
+                    cm.Blob(c, new Vector3(s, s * 0.55f, s * 0.8f), Color.white, 0.12f, rng, 1, 0, 0, Col.Hex("#ffffff"));
+                    // base mais escura (volume)
+                    for (int v = cm.v.Count - 240; v < cm.v.Count; v++) if (v >= 0 && cm.v[v].y < c.y - s * 0.2f) cm.c[v] = new Color(0.82f, 0.85f, 0.9f, 0);
+                }
+                cloudMeshes[k] = cm.ToMesh("nuvem");
+            }
+            var mm = new MeshBuilder();
+            mm.Blob(Vector3.zero, new Vector3(1, 0.25f, 1), Color.white, 0.15f, rng, 1);
+            mistMesh = mm.ToMesh("nevoa");
+            river = Audio.Loop3D("river", Vector3.zero, 4, 48);
             for (int flock = 0; flock < 4; flock++)
             {
                 var c = new Vector3(rng.Range(-110, 110), 0, rng.Range(-110, 110));
@@ -64,6 +115,14 @@ namespace Floresta
         public void Update(Vector3 cam, float darkness, float time)
         {
             float t = Time.time;
+            float dt = Time.deltaTime;
+            Butterflies(cam, darkness, t, dt);
+            Clouds(cam, darkness, time, t);
+            Mist(cam, darkness, time, t);
+            FallingLeaves(cam, darkness, dt);
+            Sounds(cam, darkness, dt);
+            // som do rio vem do ponto do rio mais perto de você
+            if (river) river.transform.position = new Vector3(cam.x, World.WaterLevel, world.RiverZ(cam.x));
             // vagalumes: aparecem do crepúsculo em diante
             float ff = Mathf.Clamp01((darkness - 0.25f) * 2f);
             if (ff > 0.01f)
@@ -124,6 +183,138 @@ namespace Floresta
                 b.wr.localRotation = Quaternion.Euler(0, 0, flap);
             }
         }
+
+        void Butterflies(Vector3 cam, float darkness, float t, float dt)
+        {
+            bool day = darkness < 0.45f;
+            foreach (var b in butterflies)
+            {
+                b.t.gameObject.SetActive(day);
+                if (!day) continue;
+                // longe demais: reaparece perto de você, num lugar aberto
+                if ((b.pos - cam).sqrMagnitude > 45 * 45 || b.pos == Vector3.zero)
+                {
+                    var d = Random.insideUnitCircle * 30f;
+                    b.pos = new Vector3(cam.x + d.x, 0, cam.z + d.y);
+                    b.pos.y = world.Height(b.pos.x, b.pos.z) + 0.8f;
+                    b.target = b.pos;
+                }
+                if (b.rest > 0) b.rest -= dt;
+                else if ((b.target - b.pos).sqrMagnitude < 0.05f)
+                {
+                    // escolhe uma flor/ponto próximo; às vezes pousa um pouco
+                    var d = Random.insideUnitCircle * 3f;
+                    b.target = b.pos + new Vector3(d.x, 0, d.y);
+                    b.target.y = world.Height(b.target.x, b.target.z) + Random.Range(0.35f, 1.4f);
+                    if (Random.value < 0.3f) b.rest = Random.Range(1f, 3f);
+                }
+                var to = b.target - b.pos;
+                var wob = new Vector3(Mathf.Sin(t * 5 + b.ph), Mathf.Sin(t * 7.3f + b.ph) * 1.5f, Mathf.Cos(t * 4.4f + b.ph)) * 0.6f;
+                if (b.rest <= 0) b.pos += (to.normalized * 1.1f + wob) * dt + Wind.At(b.pos) * 0.1f * dt;
+                b.t.position = b.pos;
+                if (to.sqrMagnitude > 0.01f) b.t.rotation = Quaternion.Slerp(b.t.rotation, Quaternion.LookRotation(new Vector3(to.x, 0, to.z) + Vector3.forward * 1e-3f), dt * 4);
+                float flap = b.rest > 0 ? 70 + Mathf.Sin(t * 2 + b.ph) * 15 : Mathf.Sin(t * 22 + b.ph) * 65;
+                b.wl.localRotation = Quaternion.Euler(0, 0, -flap);
+                b.wr.localRotation = Quaternion.Euler(0, 0, flap);
+            }
+        }
+
+        void Clouds(Vector3 cam, float darkness, float time, float t)
+        {
+            // cor das nuvens: branca de dia, alaranjada no pôr/nascer do sol, azul-escura à noite
+            float sunset = Mathf.Max(Mathf.Clamp01(1 - Mathf.Abs(time - 0.74f) / 0.05f), Mathf.Clamp01(1 - Mathf.Abs(time - 0.26f) / 0.05f));
+            var day = Color.Lerp(Col.Hex("#f4f6f8"), Col.Hex("#f0a070"), sunset);
+            var col = Color.Lerp(day, Col.Hex("#1c2030"), darkness);
+            var c = new Vector4(col.r, col.g, col.b, 0.92f);
+            for (int k = 0; k < cloudMeshes.Length; k++)
+            {
+                int n = 0;
+                for (int i = k; i < 21; i += cloudMeshes.Length)
+                {
+                    // deriva com o vento e "dá a volta" num quadrado de 520 m ao redor da câmera
+                    float bx = Hash(i * 3.7f) * 520 + Wind.Dir.x * t * 2.2f, bz = Hash(i * 9.1f) * 520 + Wind.Dir.y * t * 2.2f;
+                    float x = cam.x + Wrap(bx - cam.x, 520) - 260, z = cam.z + Wrap(bz - cam.z, 520) - 260;
+                    float y = 125 + Hash(i * 1.7f) * 35;
+                    float s = 0.9f + Hash(i * 5.3f) * 1.1f;
+                    buf[n] = Matrix4x4.TRS(new Vector3(x, y, z), Quaternion.Euler(0, Hash(i * 2.2f) * 360, 0), new Vector3(s, s * 0.8f, s));
+                    cbuf[n] = c;
+                    n++;
+                }
+                mpb.Clear(); mpb.SetVectorArray("_Color", cbuf);
+                Graphics.DrawMeshInstanced(cloudMeshes[k], 0, Mats.SoftUnlit, buf, n, mpb, UnityEngine.Rendering.ShadowCastingMode.Off, false);
+            }
+        }
+
+        void Mist(Vector3 cam, float darkness, float time, float t)
+        {
+            // névoa baixa: forte ao amanhecer, média à noite, some de dia
+            float dawn = Mathf.Clamp01(1 - Mathf.Abs(time - 0.27f) / 0.07f);
+            float amount = Mathf.Max(dawn, darkness * 0.6f);
+            if (amount < 0.02f) return;
+            const float C = 7f;
+            int cx = Mathf.FloorToInt(cam.x / C), cz = Mathf.FloorToInt(cam.z / C), n = 0;
+            for (int z = cz - 9; z <= cz + 9; z++)
+                for (int x = cx - 9; x <= cx + 9; x++)
+                {
+                    float h = Hash(x * 31.7f + z * 17.3f);
+                    float wx = x * C + Hash(x * 3.1f + z) * C, wz = z * C + Hash(z * 4.7f + x) * C;
+                    float gy = world.Height(wx, wz);
+                    // mais névoa nas partes baixas e perto do rio
+                    float low = Mathf.Clamp01(1 - (gy - 0.5f) / 5f) + (world.RiverDist(wx, wz) < 14 ? 0.5f : 0);
+                    if (h > 0.25f + low * 0.45f || gy < World.WaterLevel - 0.5f) continue;
+                    var drift = new Vector3(Wind.Dir.x, 0, Wind.Dir.y) * Mathf.Sin(t * 0.05f + h * 6) * 2.5f;
+                    float s = 3.5f + h * 6f;
+                    buf[n] = Matrix4x4.TRS(new Vector3(wx, Mathf.Max(gy, World.WaterLevel) + 0.35f, wz) + drift, Quaternion.Euler(0, h * 360, 0), new Vector3(s, 1.2f + h, s));
+                    cbuf[n] = new Vector4(0.82f, 0.86f, 0.92f, amount * (0.1f + h * 0.12f));
+                    if (++n == buf.Length) break;
+                }
+            if (n == 0) return;
+            mpb.Clear(); mpb.SetVectorArray("_Color", cbuf);
+            Graphics.DrawMeshInstanced(mistMesh, 0, Mats.Soft, buf, n, mpb, UnityEngine.Rendering.ShadowCastingMode.Off, false);
+        }
+
+        void FallingLeaves(Vector3 cam, float darkness, float dt)
+        {
+            float dens = world.ForestDensity(cam.x, cam.z);
+            if (dens < 0.46f) return;
+            leafAcc += dt * (1.5f + Wind.Strength * 2f) * Mathf.InverseLerp(0.46f, 0.6f, dens);
+            while (leafAcc > 1)
+            {
+                leafAcc -= 1;
+                var d = Random.insideUnitCircle * 14f;
+                var p = new Vector3(cam.x + d.x, 0, cam.z + d.y);
+                p.y = world.Height(p.x, p.z) + Random.Range(5f, 9f);
+                int v = Random.value < 0.25f ? Fx.LeafAutumn : Random.value < 0.5f ? Fx.LeafOak : Fx.LeafBirch;
+                Fx.Leaves(p, 0.2f, 1, v);
+            }
+        }
+
+        void Sounds(Vector3 cam, float darkness, float dt)
+        {
+            soundT -= dt;
+            if (soundT > 0) return;
+            var d = Random.insideUnitCircle.normalized * Random.Range(14f, 40f);
+            var at = new Vector3(cam.x + d.x, 0, cam.z + d.y);
+            at.y = world.Height(at.x, at.z) + Random.Range(1f, 8f);
+            bool nearRiver = world.RiverDist(cam.x, cam.z) < 35;
+            if (darkness < 0.4f)
+            {
+                soundT = Random.Range(1.5f, 5f);
+                float r = Random.value;
+                Audio.PlayAt(r < 0.3f ? "bird1" : r < 0.6f ? "bird2" : r < 0.88f ? "bird3" : "knock", at, Random.Range(0.25f, 0.5f), 0.3f, 60);
+            }
+            else
+            {
+                soundT = Random.Range(4f, 11f);
+                float r = Random.value;
+                if (nearRiver && r < 0.45f) Audio.PlayAt("frog", new Vector3(at.x, World.WaterLevel, world.RiverZ(at.x)), 0.5f, 0.2f, 50);
+                else if (r < 0.7f) Audio.PlayAt("owl", at + Vector3.up * 6, 0.45f, 1f, 80);
+                else Audio.PlayAt("twig", at, 0.6f, 1f, 45);           // algo pisou num galho...
+            }
+            if (Wind.Strength > 1.3f && Random.value < 0.25f) Audio.PlayAt("gust", cam + new Vector3(Wind.Dir.x, 2, Wind.Dir.y) * -12, 0.35f, 3f, 60);
+        }
+
+        static float Wrap(float x, float m) => ((x % m) + m) % m;
 
         void Flush(Mesh m, Material mat, int n) =>
             Graphics.DrawMeshInstanced(m, 0, mat, buf, n, null, UnityEngine.Rendering.ShadowCastingMode.Off, false);
